@@ -40,7 +40,6 @@ function CryptForm({
   crypt,
   saving = false,
   onSubmit,
-  onCancel,
 }: CryptFormProps) {
   const [formData, setFormData] = useState<CryptFormData>(() =>
     getCryptFormData(crypt)
