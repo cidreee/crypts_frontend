@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import type { Crypt } from "../../types/crypt";
+﻿import { useEffect, useState } from "react";
+import type { Crypt, CryptPayload } from "../../types/crypt";
 
 type CryptFormProps = {
   crypt: Crypt;
   saving?: boolean;
-  onSubmit: (crypt: Crypt) => void;
+  onSubmit: (crypt: CryptPayload) => void;
   onCancel: () => void;
 };
 
@@ -15,29 +15,28 @@ type CryptFormData = {
   cost: string;
 };
 
+function getCryptFormData(crypt: Crypt): CryptFormData {
+  return {
+    section: crypt.section.toString(),
+    letter: crypt.letter,
+    number: crypt.number,
+    cost: crypt.cost.toString(),
+  };
+}
+
 function CryptForm({
   crypt,
   saving = false,
   onSubmit,
   onCancel,
 }: CryptFormProps) {
-  const [formData, setFormData] = useState<CryptFormData>({
-    section: "",
-    letter: "",
-    number: "",
-    cost: "",
-  });
-
+  const [formData, setFormData] = useState<CryptFormData>(() =>
+    getCryptFormData(crypt)
+  );
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    setFormData({
-      section: crypt.section.toString(),
-      letter: crypt.letter,
-      number: crypt.number,
-      cost: crypt.cost.toString(),
-    });
-
+    setFormData(getCryptFormData(crypt));
     setFormError("");
   }, [crypt]);
 
@@ -103,7 +102,10 @@ function CryptForm({
     }
 
     onSubmit({
-      ...crypt,
+      id: crypt.id,
+      clientId: crypt.clientId,
+      isAvailable: crypt.isAvailable,
+      createdAt: crypt.createdAt,
       section: Number(formData.section),
       letter: formData.letter.trim().toUpperCase(),
       number: formData.number.trim(),

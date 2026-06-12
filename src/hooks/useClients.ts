@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiService } from "../services/apiService";
-import type { Client } from "../types/client";
+import type { Client, ClientPayload, UpdateClientPayload } from "../types/client";
 
 export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -14,7 +14,7 @@ export function useClients() {
     setSuccessMessage("");
   };
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -27,9 +27,9 @@ export function useClients() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const createClient = async (client: Client): Promise<boolean> => {
+  const createClient = async (client: ClientPayload): Promise<boolean> => {
     try {
       setSaving(true);
       clearMessages();
@@ -48,7 +48,10 @@ export function useClients() {
     }
   };
 
-  const updateClient = async (id: number, client: Client): Promise<boolean> => {
+  const updateClient = async (
+    id: number,
+    client: UpdateClientPayload
+  ): Promise<boolean> => {
     try {
       setSaving(true);
       clearMessages();
@@ -69,7 +72,7 @@ export function useClients() {
 
   useEffect(() => {
     loadClients();
-  }, []);
+  }, [loadClients]);
 
   return {
     clients,

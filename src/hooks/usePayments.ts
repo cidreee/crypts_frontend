@@ -1,6 +1,6 @@
 // src/hooks/usePayments.ts
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiService } from "../services/apiService";
 import type { Payment } from "../types/payment";
 
@@ -10,7 +10,7 @@ export function usePayments(clientId?: number) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadPayments = async (cryptId?: number) => {
+  const loadPayments = useCallback(async (cryptId?: number) => {
     if (!clientId) return;
 
     try {
@@ -29,7 +29,7 @@ export function usePayments(clientId?: number) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId]);
 
   const handleCryptFilterChange = async (cryptId?: number) => {
     setSelectedCryptId(cryptId);
@@ -38,7 +38,7 @@ export function usePayments(clientId?: number) {
 
   useEffect(() => {
     loadPayments();
-  }, [clientId]);
+  }, [loadPayments]);
 
   return {
     payments,

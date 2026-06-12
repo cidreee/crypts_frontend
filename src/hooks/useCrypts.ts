@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiService } from "../services/apiService";
 import type { Crypt } from "../types/crypt";
 
@@ -7,7 +7,7 @@ export function useCrypts() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadCrypts = async () => {
+  const loadCrypts = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -20,11 +20,11 @@ export function useCrypts() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadCrypts();
-  }, []);
+  }, [loadCrypts]);
 
   return {
     crypts,

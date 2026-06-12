@@ -19,3 +19,11 @@ export interface Payment {
     name: string;
   } | null;
 }
+
+export type PaymentPayload = Pick<
+  Payment,
+  "cryptId" | "amount" | "paymentMethodId" | "paymentDate"
+> & {
+  id?: number;
+  isActive?: boolean;
+};

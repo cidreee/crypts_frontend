@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCrypts } from "../hooks/useCrypts";
 import { apiService } from "../services/apiService";
-import type { Crypt } from "../types/crypt";
-import type { Payment } from "../types/payment";
-import type { Client } from "../types/client";
+import type { Crypt, CryptPayload } from "../types/crypt";
+import type { PaymentPayload } from "../types/payment";
+import type { Client, ClientPayload } from "../types/client";
 import CryptTable from "../components/crypts/CryptTable";
 import CryptForm from "../components/crypts/CryptForm";
 import SaleForm from "../components/crypts/SaleForm";
@@ -36,7 +36,7 @@ function CryptsPage() {
   const [pageMessage, setPageMessage] = useState("");
   const [pageError, setPageError] = useState("");
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       setClientsLoading(true);
       const data = await apiService.clients.getClientsBalance();
@@ -47,11 +47,11 @@ function CryptsPage() {
     } finally {
       setClientsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadClients();
-  }, []);
+  }, [loadClients]);
 
   const filteredCrypts = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -103,7 +103,7 @@ function CryptsPage() {
     setSelectedCrypt(crypt);
   };
 
-  const handleUpdateCrypt = async (crypt: Crypt) => {
+  const handleUpdateCrypt = async (crypt: CryptPayload) => {
     if (!crypt.id || savingCrypt) return;
 
     try {
@@ -142,8 +142,8 @@ function CryptsPage() {
 
   const handleCreateSale = async (
     mode: "existing" | "new",
-    clientData: number | Client,
-    initialPayment?: Payment
+    clientData: number | ClientPayload,
+    initialPayment?: PaymentPayload
   ) => {
     if (!selectedCryptForSale?.id || savingSale) return;
 
@@ -159,7 +159,7 @@ function CryptsPage() {
 
       if (mode === "new") {
         const createdClient = await apiService.clients.create(
-          clientData as Client
+          clientData as ClientPayload
         );
 
         clientId = createdClient.id;
@@ -211,7 +211,7 @@ function CryptsPage() {
     setSelectedCryptForPayment(crypt);
   };
 
-  const handleCreatePayment = async (payment: Payment) => {
+  const handleCreatePayment = async (payment: PaymentPayload) => {
     if (!selectedCryptForPayment?.id || savingPayment) return;
 
     try {

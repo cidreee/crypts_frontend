@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClients } from "../hooks/useClients";
 import type { Client } from "../types/client";
+import { formatCurrency } from "../utils/currency";
 import ClientTable from "../components/clients/ClientTable";
 import ClientForm from "../components/clients/ClientForm";
 import Modal from "../components/common/Modal";
@@ -96,14 +97,6 @@ function ClientsPage() {
       totalPaid,
     };
   }, [clients]);
-
-  const formatCurrency = (value?: number | null) => {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(value ?? 0);
-  };
-
 
   const handleOpenCreateModal = () => {
     clearMessages();

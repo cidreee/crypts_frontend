@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import type { Payment } from "../../types/payment";
+﻿import { useEffect, useState } from "react";
+import { PAYMENT_METHODS } from "../../constants/paymentMethods";
+import type { Payment, PaymentPayload } from "../../types/payment";
 
 type PaymentFormProps = {
   payment?: Payment | null;
   cryptId?: number;
   saving?: boolean;
-  onSubmit: (payment: Payment) => void;
+  onSubmit: (payment: PaymentPayload) => void;
   onCancel: () => void;
 };
 
@@ -15,6 +16,26 @@ type PaymentFormData = {
   paymentDate: string;
 };
 
+function getTodayDate() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function getPaymentFormData(payment?: Payment | null): PaymentFormData {
+  if (!payment) {
+    return {
+      amount: "",
+      paymentMethodId: "1",
+      paymentDate: getTodayDate(),
+    };
+  }
+
+  return {
+    amount: payment.amount.toString(),
+    paymentMethodId: payment.paymentMethodId.toString(),
+    paymentDate: payment.paymentDate,
+  };
+}
+
 function PaymentForm({
   payment,
   cryptId,
@@ -22,29 +43,13 @@ function PaymentForm({
   onSubmit,
   onCancel,
 }: PaymentFormProps) {
-  const [formData, setFormData] = useState<PaymentFormData>({
-    amount: "",
-    paymentMethodId: "1",
-    paymentDate: new Date().toISOString().split("T")[0],
-  });
-
+  const [formData, setFormData] = useState<PaymentFormData>(() =>
+    getPaymentFormData(payment)
+  );
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    if (payment) {
-      setFormData({
-        amount: payment.amount.toString(),
-        paymentMethodId: payment.paymentMethodId.toString(),
-        paymentDate: payment.paymentDate,
-      });
-    } else {
-      setFormData({
-        amount: "",
-        paymentMethodId: "1",
-        paymentDate: new Date().toISOString().split("T")[0],
-      });
-    }
-
+    setFormData(getPaymentFormData(payment));
     setFormError("");
   }, [payment]);
 
@@ -104,8 +109,8 @@ function PaymentForm({
       return;
     }
 
-    const paymentToSubmit: Payment = {
-      ...payment,
+    const paymentToSubmit: PaymentPayload = {
+      id: payment?.id,
       cryptId: finalCryptId,
       amount: Number(formData.amount),
       paymentMethodId: Number(formData.paymentMethodId),
@@ -155,12 +160,11 @@ function PaymentForm({
           disabled={saving}
           required
         >
-          <option value="1">Cash</option>
-          <option value="2">Electronic funds transfer</option>
-          <option value="3">Credit card</option>
-          <option value="4">Debit card</option>
-          <option value="5">Check</option>
-          <option value="6">To be defined</option>
+          {PAYMENT_METHODS.map((paymentMethod) => (
+            <option key={paymentMethod.id} value={paymentMethod.id}>
+              {paymentMethod.label}
+            </option>
+          ))}
         </select>
       </div>
 

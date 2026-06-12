@@ -1,4 +1,5 @@
-import type { Payment } from "../../types/payment";
+﻿import type { Payment } from "../../types/payment";
+import { formatCurrency } from "../../utils/currency";
 
 type PaymentHistoryTableProps = {
   payments: Payment[];
@@ -12,13 +13,6 @@ function PaymentHistoryTable({
   if (payments.length === 0) {
     return <p className="empty-message">No hay pagos registrados.</p>;
   }
-
-  const formatCurrency = (value?: number | null) => {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(value ?? 0);
-  };
 
   return (
     <div className="table-container">

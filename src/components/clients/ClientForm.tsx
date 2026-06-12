@@ -1,21 +1,56 @@
-import { useEffect, useState } from "react";
-import type { Client } from "../../types/client";
+﻿import { useEffect, useState } from "react";
+import type {
+  Client,
+  ClientPayload,
+  UpdateClientPayload,
+} from "../../types/client";
+import {
+  buildPhoneNumber,
+  onlyDigits,
+  splitPhoneNumber,
+  validatePhoneNumber,
+  type PhoneCountryCode,
+} from "../../utils/phone";
 
 type ClientFormProps = {
   selectedClient: Client | null;
   saving?: boolean;
-  onCreateClient: (client: Client) => Promise<boolean>;
-  onUpdateClient: (id: number, client: Client) => Promise<boolean>;
+  onCreateClient: (client: ClientPayload) => Promise<boolean>;
+  onUpdateClient: (id: number, client: UpdateClientPayload) => Promise<boolean>;
   onCancel: () => void;
 };
 
 type ClientFormData = {
   firstName: string;
   lastName: string;
-  phoneCountryCode: string;
+  phoneCountryCode: PhoneCountryCode;
   phoneNumber: string;
   isActive: boolean;
 };
+
+const emptyClientFormData: ClientFormData = {
+  firstName: "",
+  lastName: "",
+  phoneCountryCode: "+52",
+  phoneNumber: "",
+  isActive: true,
+};
+
+function getClientFormData(client: Client | null): ClientFormData {
+  if (!client) {
+    return emptyClientFormData;
+  }
+
+  const phone = splitPhoneNumber(client.phoneNumber);
+
+  return {
+    firstName: client.firstName,
+    lastName: client.lastName,
+    phoneCountryCode: phone.phoneCountryCode,
+    phoneNumber: phone.phoneNumber,
+    isActive: client.isActive,
+  };
+}
 
 function ClientForm({
   selectedClient,
@@ -24,65 +59,13 @@ function ClientForm({
   onUpdateClient,
   onCancel,
 }: ClientFormProps) {
-  const [formData, setFormData] = useState<ClientFormData>({
-    firstName: "",
-    lastName: "",
-    phoneCountryCode: "+52",
-    phoneNumber: "",
-    isActive: true,
-  });
-
+  const [formData, setFormData] = useState<ClientFormData>(() =>
+    getClientFormData(selectedClient)
+  );
   const [formError, setFormError] = useState("");
 
-  const splitPhoneNumber = (phone?: string | null) => {
-    if (!phone) {
-      return {
-        phoneCountryCode: "+52",
-        phoneNumber: "",
-      };
-    }
-
-    if (phone.startsWith("+52")) {
-      return {
-        phoneCountryCode: "+52",
-        phoneNumber: phone.replace("+52", ""),
-      };
-    }
-
-    if (phone.startsWith("+1")) {
-      return {
-        phoneCountryCode: "+1",
-        phoneNumber: phone.replace("+1", ""),
-      };
-    }
-
-    return {
-      phoneCountryCode: "+52",
-      phoneNumber: phone.replace(/\D/g, ""),
-    };
-  };
-
   useEffect(() => {
-    if (selectedClient) {
-      const phone = splitPhoneNumber(selectedClient.phoneNumber);
-
-      setFormData({
-        firstName: selectedClient.firstName,
-        lastName: selectedClient.lastName,
-        phoneCountryCode: phone.phoneCountryCode,
-        phoneNumber: phone.phoneNumber,
-        isActive: selectedClient.isActive,
-      });
-    } else {
-      setFormData({
-        firstName: "",
-        lastName: "",
-        phoneCountryCode: "+52",
-        phoneNumber: "",
-        isActive: true,
-      });
-    }
-
+    setFormData(getClientFormData(selectedClient));
     setFormError("");
   }, [selectedClient]);
 
@@ -92,11 +75,9 @@ function ClientForm({
     const { name, value } = e.target;
 
     if (name === "phoneNumber") {
-      const onlyNumbers = value.replace(/\D/g, "");
-
       setFormData((prev) => ({
         ...prev,
-        phoneNumber: onlyNumbers,
+        phoneNumber: onlyDigits(value),
       }));
 
       return;
@@ -104,7 +85,12 @@ function ClientForm({
 
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "isActive" ? value === "true" : value,
+      [name]:
+        name === "isActive"
+          ? value === "true"
+          : name === "phoneCountryCode"
+          ? (value as PhoneCountryCode)
+          : value,
     }));
   };
 
@@ -117,25 +103,7 @@ function ClientForm({
       return "El apellido es obligatorio.";
     }
 
-    if (formData.phoneNumber.trim() !== "") {
-      if (formData.phoneCountryCode === "+52" && formData.phoneNumber.length !== 10) {
-        return "El número celular de México debe tener 10 dígitos.";
-      }
-
-      if (formData.phoneCountryCode === "+1" && formData.phoneNumber.length !== 10) {
-        return "El número de Estados Unidos/Canadá debe tener 10 dígitos.";
-      }
-    }
-
-    return "";
-  };
-
-  const buildFullPhoneNumber = () => {
-    if (!formData.phoneNumber.trim()) {
-      return null;
-    }
-
-    return `${formData.phoneCountryCode}${formData.phoneNumber}`;
+    return validatePhoneNumber(formData);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,22 +116,18 @@ function ClientForm({
       return;
     }
 
-    const clientToSave: Client = {
+    const clientToSave: UpdateClientPayload = {
       id: selectedClient?.id,
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
-      phoneNumber: buildFullPhoneNumber(),
+      phoneNumber: buildPhoneNumber(formData),
       isActive: formData.isActive,
       createdAt: selectedClient?.createdAt,
     };
 
-    let success = false;
-
-    if (selectedClient?.id) {
-      success = await onUpdateClient(selectedClient.id, clientToSave);
-    } else {
-      success = await onCreateClient(clientToSave);
-    }
+    const success = selectedClient?.id
+      ? await onUpdateClient(selectedClient.id, clientToSave)
+      : await onCreateClient(clientToSave);
 
     if (success) {
       onCancel();

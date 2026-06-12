@@ -1,7 +1,11 @@
 import axiosClient from "../api/axiosClient";
-import type { Client } from "../types/client";
-import type { Crypt } from "../types/crypt";
-import type { Payment } from "../types/payment";
+import type {
+  Client,
+  ClientPayload,
+  UpdateClientPayload,
+} from "../types/client";
+import type { Crypt, CryptPayload } from "../types/crypt";
+import type { Payment, PaymentPayload } from "../types/payment";
 import type { ApiResponse } from "../types/apiResponse";
 
 export const apiService = {
@@ -17,12 +21,12 @@ export const apiService = {
       return response.data.data;
     },
 
-    create: async (client: Client): Promise<Client> => {
+    create: async (client: ClientPayload): Promise<Client> => {
       const response = await axiosClient.post<ApiResponse<Client>>("/Client", client);
       return response.data.data;
     },
 
-    update: async (id: number, client: Client): Promise<void> => {
+    update: async (id: number, client: UpdateClientPayload): Promise<void> => {
       await axiosClient.put(`/Client/${id}`, client);
     },
   },
@@ -39,12 +43,12 @@ export const apiService = {
       return response.data.data;
     },
 
-    create: async (crypt: Crypt): Promise<Crypt> => {
+    create: async (crypt: CryptPayload): Promise<Crypt> => {
       const response = await axiosClient.post<ApiResponse<Crypt>>("/Crypt", crypt);
       return response.data.data;
     },
 
-    update: async (id: number, crypt: Crypt): Promise<void> => {
+    update: async (id: number, crypt: CryptPayload): Promise<void> => {
       await axiosClient.put(`/Crypt/${id}`, crypt);
     },
 
@@ -85,7 +89,7 @@ export const apiService = {
       return response.data.data;
     },
 
-    create: async (payment: Payment): Promise<Payment> => {
+    create: async (payment: PaymentPayload): Promise<Payment> => {
       const response = await axiosClient.post<ApiResponse<Payment>>(
         "/Payment",
         payment
@@ -94,11 +98,8 @@ export const apiService = {
       return response.data.data;
     },
 
-    update: async (id: number, payment: Payment): Promise<void> => {
+    update: async (id: number, payment: PaymentPayload): Promise<void> => {
       await axiosClient.put(`/Payment/${id}`, payment);
     },
   },
-
-
-
 };

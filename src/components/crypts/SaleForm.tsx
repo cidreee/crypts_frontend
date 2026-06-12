@@ -1,33 +1,60 @@
-import { useEffect, useState } from "react";
-import type { Client } from "../../types/client";
-import type { Payment } from "../../types/payment";
+﻿import { useEffect, useState } from "react";
+import { PAYMENT_METHODS } from "../../constants/paymentMethods";
+import type { Client, ClientPayload } from "../../types/client";
+import type { PaymentPayload } from "../../types/payment";
+import {
+  buildPhoneNumber,
+  onlyDigits,
+  validatePhoneNumber,
+  type PhoneCountryCode,
+} from "../../utils/phone";
+
+type SaleMode = "existing" | "new";
 
 type SaleFormProps = {
   clients: Client[];
   saving?: boolean;
   onSubmit: (
-    mode: "existing" | "new",
-    clientData: number | Client,
-    initialPayment?: Payment
+    mode: SaleMode,
+    clientData: number | ClientPayload,
+    initialPayment?: PaymentPayload
   ) => void;
   onCancel: () => void;
 };
 
 type SaleFormData = {
-  mode: "existing" | "new";
-
+  mode: SaleMode;
   clientId: string;
-
   firstName: string;
   lastName: string;
-  phoneCountryCode: string;
+  phoneCountryCode: PhoneCountryCode;
   phoneNumber: string;
-
   hasInitialPayment: boolean;
   amount: string;
   paymentMethodId: string;
   paymentDate: string;
 };
+
+function getTodayDate() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function getInitialFormData(clients: Client[]): SaleFormData {
+  const firstClientId = clients[0]?.id?.toString() ?? "";
+
+  return {
+    mode: firstClientId ? "existing" : "new",
+    clientId: firstClientId,
+    firstName: "",
+    lastName: "",
+    phoneCountryCode: "+52",
+    phoneNumber: "",
+    hasInitialPayment: false,
+    amount: "",
+    paymentMethodId: "1",
+    paymentDate: getTodayDate(),
+  };
+}
 
 function SaleForm({
   clients,
@@ -35,43 +62,32 @@ function SaleForm({
   onSubmit,
   onCancel,
 }: SaleFormProps) {
-  const [formData, setFormData] = useState<SaleFormData>({
-    mode: clients.length > 0 ? "existing" : "new",
-
-    clientId: "",
-
-    firstName: "",
-    lastName: "",
-    phoneCountryCode: "+52",
-    phoneNumber: "",
-
-    hasInitialPayment: false,
-    amount: "",
-    paymentMethodId: "1",
-    paymentDate: new Date().toISOString().split("T")[0],
-  });
-
+  const [formData, setFormData] = useState<SaleFormData>(() =>
+    getInitialFormData(clients)
+  );
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    if (clients.length === 0) {
-      setFormData((prev) => ({
-        ...prev,
-        mode: "new",
-        clientId: "",
-      }));
+    setFormData((prev) => {
+      if (clients.length === 0) {
+        return {
+          ...prev,
+          mode: "new",
+          clientId: "",
+        };
+      }
 
-      return;
-    }
+      if (prev.clientId) {
+        return prev;
+      }
 
-    if (!formData.clientId) {
-      setFormData((prev) => ({
+      return {
         ...prev,
         mode: prev.mode,
         clientId: clients[0].id?.toString() ?? "",
-      }));
-    }
-  }, [clients, formData.clientId]);
+      };
+    });
+  }, [clients]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -92,18 +108,16 @@ function SaleForm({
     }
 
     if (name === "phoneNumber") {
-      const onlyNumbers = value.replace(/\D/g, "");
-
       setFormData((prev) => ({
         ...prev,
-        phoneNumber: onlyNumbers,
+        phoneNumber: onlyDigits(value),
       }));
 
       return;
     }
 
     if (name === "mode") {
-      const selectedMode = value as "existing" | "new";
+      const selectedMode = value as SaleMode;
 
       setFormData((prev) => ({
         ...prev,
@@ -119,16 +133,8 @@ function SaleForm({
 
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === "phoneCountryCode" ? (value as PhoneCountryCode) : value,
     }));
-  };
-
-  const buildPhoneNumber = () => {
-    if (!formData.phoneNumber.trim()) {
-      return null;
-    }
-
-    return `${formData.phoneCountryCode}${formData.phoneNumber}`;
   };
 
   const validateClientData = () => {
@@ -150,23 +156,7 @@ function SaleForm({
       return "El apellido del cliente es obligatorio.";
     }
 
-    if (formData.phoneNumber.trim() !== "") {
-      if (
-        formData.phoneCountryCode === "+52" &&
-        formData.phoneNumber.length !== 10
-      ) {
-        return "El número celular de México debe tener 10 dígitos.";
-      }
-
-      if (
-        formData.phoneCountryCode === "+1" &&
-        formData.phoneNumber.length !== 10
-      ) {
-        return "El número de Estados Unidos/Canadá debe tener 10 dígitos.";
-      }
-    }
-
-    return "";
+    return validatePhoneNumber(formData);
   };
 
   const validateInitialPayment = () => {
@@ -199,7 +189,7 @@ function SaleForm({
     return "";
   };
 
-  const buildInitialPayment = (): Payment | undefined => {
+  const buildInitialPayment = (): PaymentPayload | undefined => {
     if (!formData.hasInitialPayment) {
       return undefined;
     }
@@ -235,15 +225,14 @@ function SaleForm({
     const initialPayment = buildInitialPayment();
 
     if (formData.mode === "existing") {
-      const clientId = Number(formData.clientId);
-      onSubmit("existing", clientId, initialPayment);
+      onSubmit("existing", Number(formData.clientId), initialPayment);
       return;
     }
 
-    const newClient: Client = {
+    const newClient: ClientPayload = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
-      phoneNumber: buildPhoneNumber(),
+      phoneNumber: buildPhoneNumber(formData),
       isActive: true,
     };
 
@@ -396,12 +385,11 @@ function SaleForm({
               disabled={saving}
               required={formData.hasInitialPayment}
             >
-              <option value="1">Cash</option>
-              <option value="2">Electronic funds transfer</option>
-              <option value="3">Credit card</option>
-              <option value="4">Debit card</option>
-              <option value="5">Check</option>
-              <option value="6">To be defined</option>
+              {PAYMENT_METHODS.map((paymentMethod) => (
+                <option key={paymentMethod.id} value={paymentMethod.id}>
+                  {paymentMethod.label}
+                </option>
+              ))}
             </select>
           </div>
         </>

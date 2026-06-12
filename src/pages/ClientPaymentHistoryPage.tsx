@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiService } from "../services/apiService";
 import { usePayments } from "../hooks/usePayments";
 import type { Client } from "../types/client";
-import type { Payment } from "../types/payment";
+import type { Payment, PaymentPayload } from "../types/payment";
+import { formatCurrency } from "../utils/currency";
 import PaymentHistoryTable from "../components/clients/PaymentHistoryTable";
 import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
@@ -31,7 +32,7 @@ function ClientPaymentHistoryPage() {
   const [pageMessage, setPageMessage] = useState("");
   const [pageError, setPageError] = useState("");
 
-  const loadClient = async () => {
+  const loadClient = useCallback(async () => {
     if (!numericClientId || Number.isNaN(numericClientId)) return;
 
     try {
@@ -49,18 +50,11 @@ function ClientPaymentHistoryPage() {
     } finally {
       setClientLoading(false);
     }
-  };
+  }, [numericClientId]);
 
   useEffect(() => {
     loadClient();
-  }, [numericClientId]);
-
-  const formatCurrency = (value?: number | null) => {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(value ?? 0);
-  };
+  }, [loadClient]);
 
   const cryptOptions = useMemo(() => {
     const map = new Map<number, string>();
@@ -92,7 +86,7 @@ function ClientPaymentHistoryPage() {
     setSelectedPayment(payment);
   };
 
-  const handleUpdatePayment = async (payment: Payment) => {
+  const handleUpdatePayment = async (payment: PaymentPayload) => {
     if (!payment.id || savingPayment) return;
 
     try {

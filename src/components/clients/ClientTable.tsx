@@ -1,4 +1,5 @@
-import type { Client } from "../../types/client";
+﻿import type { Client } from "../../types/client";
+import { formatCurrency } from "../../utils/currency";
 
 type ClientTableProps = {
   clients: Client[];
@@ -14,13 +15,6 @@ function ClientTable({
   if (clients.length === 0) {
     return <p className="empty-message">No hay clientes registrados.</p>;
   }
-
-  const formatCurrency = (value?: number | null) => {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(value ?? 0);
-  };
 
   return (
     <div className="table-container">
