@@ -20,7 +20,6 @@ function CryptsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
 
-  const [isCreateCryptModalOpen, setIsCreateCryptModalOpen] = useState(false);
   const [selectedCrypt, setSelectedCrypt] = useState<Crypt | null>(null);
   const [selectedCryptForSale, setSelectedCryptForSale] =
     useState<Crypt | null>(null);
@@ -103,31 +102,6 @@ function CryptsPage() {
     setPageMessage("");
   };
 
-  const handleOpenCreateCryptModal = () => {
-    clearPageMessages();
-    setIsCreateCryptModalOpen(true);
-  };
-
-  const handleCreateCrypt = async (crypt: CryptPayload) => {
-    if (savingCrypt) return;
-
-    try {
-      setSavingCrypt(true);
-      clearPageMessages();
-
-      await apiService.crypts.create(crypt);
-
-      setIsCreateCryptModalOpen(false);
-      setPageMessage("Cripta registrada correctamente.");
-
-      await loadCrypts();
-    } catch (err) {
-      console.error("Error creating crypt:", err);
-      setPageError(getApiErrorMessage(err, "No se pudo registrar la cripta."));
-    } finally {
-      setSavingCrypt(false);
-    }
-  };
 
   const handleEditCrypt = (crypt: Crypt) => {
     clearPageMessages();
@@ -301,11 +275,6 @@ function CryptsPage() {
     }
   };
 
-  const handleCloseCreateCryptModal = () => {
-    if (savingCrypt) return;
-    setIsCreateCryptModalOpen(false);
-  };
-
   const handleCloseCryptModal = () => {
     if (savingCrypt) return;
     setSelectedCrypt(null);
@@ -329,14 +298,6 @@ function CryptsPage() {
           <p>Consulta, edita y administra ventas de criptas.</p>
         </div>
 
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={handleOpenCreateCryptModal}
-          disabled={savingCrypt || savingSale || savingPayment || cancelingPurchase}
-        >
-          Registrar cripta
-        </button>
       </div>
 
       {error && <p className="error-message">{error}</p>}
@@ -421,19 +382,6 @@ function CryptsPage() {
           onCancelPurchase={handleCancelPurchase}
         />
       )}
-
-      <Modal
-        isOpen={isCreateCryptModalOpen}
-        title="Registrar cripta"
-        onClose={handleCloseCreateCryptModal}
-        closeDisabled={savingCrypt}
-      >
-        <CryptForm
-          saving={savingCrypt}
-          onSubmit={handleCreateCrypt}
-          onCancel={handleCloseCreateCryptModal}
-        />
-      </Modal>
 
       <Modal
         isOpen={selectedCrypt !== null}

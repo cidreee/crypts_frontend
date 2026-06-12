@@ -55,10 +55,36 @@ function CryptForm({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
-    if (name === "letter") {
+    if (name === "section") {
+      const onlyNumbers = value.replace(/\D/g, "");
+
       setFormData((prev) => ({
         ...prev,
-        letter: value.trimStart().toUpperCase(),
+        section: onlyNumbers,
+      }));
+
+      return;
+    }
+
+    if (name === "letter") {
+      const onlyLetters = value
+        .replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ]/g, "")
+        .toUpperCase();
+
+      setFormData((prev) => ({
+        ...prev,
+        letter: onlyLetters,
+      }));
+
+      return;
+    }
+
+    if (name === "number") {
+      const onlyNumbers = value.replace(/\D/g, "");
+
+      setFormData((prev) => ({
+        ...prev,
+        number: onlyNumbers,
       }));
 
       return;
@@ -78,6 +104,10 @@ function CryptForm({
       return "La sección es obligatoria.";
     }
 
+    if (!/^\d+$/.test(formData.section.trim())) {
+      return "La sección solo debe contener números.";
+    }
+
     if (!Number.isInteger(section) || section <= 0) {
       return "La sección debe ser un número entero mayor a 0.";
     }
@@ -86,12 +116,20 @@ function CryptForm({
       return "La letra es obligatoria.";
     }
 
+    if (!/^[a-zA-ZÁÉÍÓÚáéíóúÑñ]+$/.test(formData.letter.trim())) {
+      return "La letra solo debe contener caracteres.";
+    }
+
     if (/\s/.test(formData.letter.trim())) {
       return "La letra no debe contener espacios.";
     }
 
     if (!formData.number.trim()) {
       return "El número de cripta es obligatorio.";
+    }
+
+    if (!/^\d+$/.test(formData.number.trim())) {
+      return "El número de cripta solo debe contener números.";
     }
 
     if (!formData.cost.trim()) {
@@ -108,7 +146,6 @@ function CryptForm({
 
     return "";
   };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -140,12 +177,13 @@ function CryptForm({
       <div className="form-group">
         <label>Sección</label>
         <input
-          type="number"
+          type="text"
           name="section"
           value={formData.section}
           onChange={handleChange}
-          min="1"
-          step="1"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="Ingresa el número de la sección"
           disabled={saving}
           required
         />
@@ -159,6 +197,7 @@ function CryptForm({
           value={formData.letter}
           onChange={handleChange}
           maxLength={5}
+          placeholder="Ingresa la letra de la cripta"
           disabled={saving}
           required
         />
@@ -171,6 +210,9 @@ function CryptForm({
           name="number"
           value={formData.number}
           onChange={handleChange}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="Ingresa el número de cripta"
           disabled={saving}
           required
         />
@@ -188,21 +230,6 @@ function CryptForm({
           disabled={saving}
           required
         />
-      </div>
-
-      <div className="form-actions">
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancelar
-        </button>
-
-        <button type="submit" className="btn-primary" disabled={saving}>
-          {saving ? "Guardando..." : crypt ? "Guardar cambios" : "Registrar cripta"}
-        </button>
       </div>
     </form>
   );
