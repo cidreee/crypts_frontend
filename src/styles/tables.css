@@ -1,0 +1,25 @@
+.table-container {
+  overflow-x: auto;
+}
+
+.clients-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.clients-table th,
+.clients-table td {
+  padding: 0.85rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.clients-table th {
+  background-color: #f9fafb;
+  font-weight: 700;
+}
+
+.clients-table tr:hover {
+  background-color: #f3f4f6;
+}

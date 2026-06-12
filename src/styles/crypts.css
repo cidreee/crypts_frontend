@@ -1,0 +1,26 @@
+.filters-container {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filters-container .form-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+}
+
+.filters-container input,
+.filters-container select {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.results-count {
+  margin-bottom: 1rem;
+  color: #555;
+  font-size: 0.9rem;
+}
