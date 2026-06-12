@@ -9,15 +9,6 @@ function Navbar() {
 
       <div className="navbar-links">
         <NavLink
-          to="/clients"
-          className={({ isActive }) =>
-            isActive ? "navbar-link active" : "navbar-link"
-          }
-        >
-          Clientes
-        </NavLink>
-
-        <NavLink
           to="/crypts"
           className={({ isActive }) =>
             isActive ? "navbar-link active" : "navbar-link"
@@ -25,6 +16,14 @@ function Navbar() {
         >
           Criptas
         </NavLink>
+        <NavLink
+          to="/clients"
+          className={({ isActive }) =>
+            isActive ? "navbar-link active" : "navbar-link"
+          }
+        >
+          Clientes
+        </NavLink>        
       </div>
     </nav>
   );
