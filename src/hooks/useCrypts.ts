@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiService } from "../services/apiService";
 import type { Crypt } from "../types/crypt";
+import { getApiErrorMessage } from "../utils/apiError";
 
 export function useCrypts() {
   const [crypts, setCrypts] = useState<Crypt[]>([]);
@@ -16,7 +17,7 @@ export function useCrypts() {
       setCrypts(data);
     } catch (err) {
       console.error(err);
-      setError("No se pudieron cargar las criptas.");
+      setError(getApiErrorMessage(err, "No se pudieron cargar las criptas."));
     } finally {
       setLoading(false);
     }

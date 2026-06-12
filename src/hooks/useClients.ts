@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiService } from "../services/apiService";
 import type { Client, ClientPayload, UpdateClientPayload } from "../types/client";
+import { getApiErrorMessage } from "../utils/apiError";
 
 export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -23,7 +24,7 @@ export function useClients() {
       setClients(data);
     } catch (err) {
       console.error("Error loading clients:", err);
-      setError("No se pudieron cargar los clientes.");
+      setError(getApiErrorMessage(err, "No se pudieron cargar los clientes."));
     } finally {
       setLoading(false);
     }
@@ -41,7 +42,7 @@ export function useClients() {
       return true;
     } catch (err) {
       console.error("Error creating client:", err);
-      setError("No se pudo registrar el cliente.");
+      setError(getApiErrorMessage(err, "No se pudo registrar el cliente."));
       return false;
     } finally {
       setSaving(false);
@@ -63,7 +64,7 @@ export function useClients() {
       return true;
     } catch (err) {
       console.error("Error updating client:", err);
-      setError("No se pudo actualizar el cliente.");
+      setError(getApiErrorMessage(err, "No se pudo actualizar el cliente."));
       return false;
     } finally {
       setSaving(false);

@@ -1,8 +1,9 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Crypt, CryptPayload } from "../../types/crypt";
+import { hasMoreThanTwoDecimals } from "../../utils/number";
 
 type CryptFormProps = {
-  crypt: Crypt;
+  crypt?: Crypt | null;
   saving?: boolean;
   onSubmit: (crypt: CryptPayload) => void;
   onCancel: () => void;
@@ -15,7 +16,18 @@ type CryptFormData = {
   cost: string;
 };
 
-function getCryptFormData(crypt: Crypt): CryptFormData {
+const emptyCryptFormData: CryptFormData = {
+  section: "",
+  letter: "",
+  number: "",
+  cost: "",
+};
+
+function getCryptFormData(crypt?: Crypt | null): CryptFormData {
+  if (!crypt) {
+    return emptyCryptFormData;
+  }
+
   return {
     section: crypt.section.toString(),
     letter: crypt.letter,
@@ -46,7 +58,7 @@ function CryptForm({
     if (name === "letter") {
       setFormData((prev) => ({
         ...prev,
-        letter: value.toUpperCase(),
+        letter: value.trimStart().toUpperCase(),
       }));
 
       return;
@@ -66,12 +78,16 @@ function CryptForm({
       return "La sección es obligatoria.";
     }
 
-    if (Number.isNaN(section) || section <= 0) {
-      return "La sección debe ser un número mayor a 0.";
+    if (!Number.isInteger(section) || section <= 0) {
+      return "La sección debe ser un número entero mayor a 0.";
     }
 
     if (!formData.letter.trim()) {
       return "La letra es obligatoria.";
+    }
+
+    if (/\s/.test(formData.letter.trim())) {
+      return "La letra no debe contener espacios.";
     }
 
     if (!formData.number.trim()) {
@@ -84,6 +100,10 @@ function CryptForm({
 
     if (Number.isNaN(cost) || cost <= 0) {
       return "El costo debe ser mayor a 0.";
+    }
+
+    if (hasMoreThanTwoDecimals(formData.cost)) {
+      return "El costo no puede tener más de 2 decimales.";
     }
 
     return "";
@@ -102,10 +122,10 @@ function CryptForm({
     }
 
     onSubmit({
-      id: crypt.id,
-      clientId: crypt.clientId,
-      isAvailable: crypt.isAvailable,
-      createdAt: crypt.createdAt,
+      id: crypt?.id,
+      clientId: crypt?.clientId ?? null,
+      isAvailable: crypt?.isAvailable ?? true,
+      createdAt: crypt?.createdAt,
       section: Number(formData.section),
       letter: formData.letter.trim().toUpperCase(),
       number: formData.number.trim(),
@@ -125,6 +145,7 @@ function CryptForm({
           value={formData.section}
           onChange={handleChange}
           min="1"
+          step="1"
           disabled={saving}
           required
         />
@@ -180,7 +201,7 @@ function CryptForm({
         </button>
 
         <button type="submit" className="btn-primary" disabled={saving}>
-          {saving ? "Guardando..." : "Guardar cambios"}
+          {saving ? "Guardando..." : crypt ? "Guardar cambios" : "Registrar cripta"}
         </button>
       </div>
     </form>

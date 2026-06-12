@@ -5,6 +5,7 @@ import { usePayments } from "../hooks/usePayments";
 import type { Client } from "../types/client";
 import type { Payment, PaymentPayload } from "../types/payment";
 import { formatCurrency } from "../utils/currency";
+import { getApiErrorMessage } from "../utils/apiError";
 import PaymentHistoryTable from "../components/clients/PaymentHistoryTable";
 import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
@@ -46,7 +47,9 @@ function ClientPaymentHistoryPage() {
       setClient(data);
     } catch (err) {
       console.error("Error loading client:", err);
-      setClientError("No se pudo cargar la información del cliente.");
+      setClientError(
+        getApiErrorMessage(err, "No se pudo cargar la información del cliente.")
+      );
     } finally {
       setClientLoading(false);
     }
@@ -103,7 +106,7 @@ function ClientPaymentHistoryPage() {
       await loadClient();
     } catch (error) {
       console.error("Error updating payment:", error);
-      setPageError("No se pudo actualizar el pago.");
+      setPageError(getApiErrorMessage(error, "No se pudo actualizar el pago."));
     } finally {
       setSavingPayment(false);
     }

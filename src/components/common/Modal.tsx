@@ -5,9 +5,16 @@ type ModalProps = {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  closeDisabled?: boolean;
 };
 
-function Modal({ isOpen, title, children, onClose }: ModalProps) {
+function Modal({
+  isOpen,
+  title,
+  children,
+  onClose,
+  closeDisabled = false,
+}: ModalProps) {
   if (!isOpen) {
     return null;
   }
@@ -18,8 +25,14 @@ function Modal({ isOpen, title, children, onClose }: ModalProps) {
         <div className="modal-header">
           <h2>{title}</h2>
 
-          <button type="button" className="modal-close" onClick={onClose}>
-            ✕
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            disabled={closeDisabled}
+            aria-label="Cerrar"
+          >
+            x
           </button>
         </div>
 

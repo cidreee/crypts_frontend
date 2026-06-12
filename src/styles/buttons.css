@@ -21,6 +21,11 @@ button:disabled {
   color: #111827;
 }
 
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+}
+
 .btn-edit {
   background-color: #f59e0b;
   color: white;

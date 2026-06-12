@@ -1,10 +1,18 @@
-    import axios from "axios";
+import axios from "axios";
 
-    const axiosClient = axios.create({
-        baseURL: import.meta.env.VITE_API_URL,
-        headers: {
-            "Content-Type": "application/json",
-        },
-    })
+const apiUrl = import.meta.env.VITE_API_URL;
 
-    export default axiosClient;
+if (!apiUrl) {
+  throw new Error(
+    "Falta configurar VITE_API_URL. Crea un archivo .env usando .env.example."
+  );
+}
+
+const axiosClient = axios.create({
+  baseURL: apiUrl,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export default axiosClient;

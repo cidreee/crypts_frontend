@@ -8,12 +8,15 @@ import {
   validatePhoneNumber,
   type PhoneCountryCode,
 } from "../../utils/phone";
+import { getTodayLocalDate, isFutureDate } from "../../utils/date";
+import { hasMoreThanTwoDecimals } from "../../utils/number";
 
 type SaleMode = "existing" | "new";
 
 type SaleFormProps = {
   clients: Client[];
   saving?: boolean;
+  maxInitialPayment?: number | null;
   onSubmit: (
     mode: SaleMode,
     clientData: number | ClientPayload,
@@ -36,7 +39,7 @@ type SaleFormData = {
 };
 
 function getTodayDate() {
-  return new Date().toISOString().split("T")[0];
+  return getTodayLocalDate();
 }
 
 function getInitialFormData(clients: Client[]): SaleFormData {
@@ -59,6 +62,7 @@ function getInitialFormData(clients: Client[]): SaleFormData {
 function SaleForm({
   clients,
   saving = false,
+  maxInitialPayment,
   onSubmit,
   onCancel,
 }: SaleFormProps) {
@@ -178,8 +182,20 @@ function SaleForm({
       return "El monto del pago inicial debe ser mayor a 0.";
     }
 
+    if (hasMoreThanTwoDecimals(formData.amount)) {
+      return "El monto del pago inicial no puede tener más de 2 decimales.";
+    }
+
+    if (maxInitialPayment != null && amount > maxInitialPayment) {
+      return "El pago inicial no puede ser mayor al costo de la cripta.";
+    }
+
     if (!formData.paymentDate) {
       return "Selecciona la fecha del pago inicial.";
+    }
+
+    if (isFutureDate(formData.paymentDate)) {
+      return "La fecha del pago inicial no puede ser futura.";
     }
 
     if (!formData.paymentMethodId) {
@@ -358,6 +374,7 @@ function SaleForm({
               value={formData.amount}
               onChange={handleChange}
               min="0.01"
+              max={maxInitialPayment ?? undefined}
               step="0.01"
               disabled={saving}
               required={formData.hasInitialPayment}
@@ -371,6 +388,7 @@ function SaleForm({
               name="paymentDate"
               value={formData.paymentDate}
               onChange={handleChange}
+              max={getTodayDate()}
               disabled={saving}
               required={formData.hasInitialPayment}
             />

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiService } from "../services/apiService";
 import type { Payment } from "../types/payment";
+import { getApiErrorMessage } from "../utils/apiError";
 
 export function usePayments(clientId?: number) {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -25,7 +26,9 @@ export function usePayments(clientId?: number) {
       setPayments(data);
     } catch (err) {
       console.error(err);
-      setError("No se pudo cargar el historial de pagos.");
+      setError(
+        getApiErrorMessage(err, "No se pudo cargar el historial de pagos.")
+      );
     } finally {
       setLoading(false);
     }

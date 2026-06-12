@@ -1,11 +1,14 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { PAYMENT_METHODS } from "../../constants/paymentMethods";
 import type { Payment, PaymentPayload } from "../../types/payment";
+import { getTodayLocalDate, isFutureDate } from "../../utils/date";
+import { hasMoreThanTwoDecimals } from "../../utils/number";
 
 type PaymentFormProps = {
   payment?: Payment | null;
   cryptId?: number;
   saving?: boolean;
+  maxAmount?: number | null;
   onSubmit: (payment: PaymentPayload) => void;
   onCancel: () => void;
 };
@@ -16,16 +19,12 @@ type PaymentFormData = {
   paymentDate: string;
 };
 
-function getTodayDate() {
-  return new Date().toISOString().split("T")[0];
-}
-
 function getPaymentFormData(payment?: Payment | null): PaymentFormData {
   if (!payment) {
     return {
       amount: "",
       paymentMethodId: "1",
-      paymentDate: getTodayDate(),
+      paymentDate: getTodayLocalDate(),
     };
   }
 
@@ -40,6 +39,7 @@ function PaymentForm({
   payment,
   cryptId,
   saving = false,
+  maxAmount,
   onSubmit,
   onCancel,
 }: PaymentFormProps) {
@@ -79,8 +79,20 @@ function PaymentForm({
       return "El monto debe ser mayor a 0.";
     }
 
+    if (hasMoreThanTwoDecimals(formData.amount)) {
+      return "El monto no puede tener más de 2 decimales.";
+    }
+
+    if (maxAmount != null && amount > maxAmount) {
+      return "El monto no puede ser mayor al saldo pendiente.";
+    }
+
     if (!formData.paymentDate) {
       return "La fecha de pago es obligatoria.";
+    }
+
+    if (isFutureDate(formData.paymentDate)) {
+      return "La fecha de pago no puede ser futura.";
     }
 
     if (!formData.paymentMethodId) {
@@ -133,6 +145,7 @@ function PaymentForm({
           value={formData.amount}
           onChange={handleChange}
           min="0.01"
+          max={maxAmount ?? undefined}
           step="0.01"
           disabled={saving}
           required
@@ -146,6 +159,7 @@ function PaymentForm({
           name="paymentDate"
           value={formData.paymentDate}
           onChange={handleChange}
+          max={getTodayLocalDate()}
           disabled={saving}
           required
         />

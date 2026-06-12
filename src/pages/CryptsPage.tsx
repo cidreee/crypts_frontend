@@ -9,6 +9,8 @@ import CryptForm from "../components/crypts/CryptForm";
 import SaleForm from "../components/crypts/SaleForm";
 import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
+import ConfirmModal from "../components/common/ConfirmModal";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type AvailabilityFilter = "all" | "available" | "occupied";
 
@@ -18,10 +20,13 @@ function CryptsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
 
+  const [isCreateCryptModalOpen, setIsCreateCryptModalOpen] = useState(false);
   const [selectedCrypt, setSelectedCrypt] = useState<Crypt | null>(null);
   const [selectedCryptForSale, setSelectedCryptForSale] =
     useState<Crypt | null>(null);
   const [selectedCryptForPayment, setSelectedCryptForPayment] =
+    useState<Crypt | null>(null);
+  const [cryptToCancelPurchase, setCryptToCancelPurchase] =
     useState<Crypt | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,7 +48,7 @@ function CryptsPage() {
       setClients(data);
     } catch (err) {
       console.error("Error loading clients:", err);
-      setPageError("No se pudieron cargar los clientes.");
+      setPageError(getApiErrorMessage(err, "No se pudieron cargar los clientes."));
     } finally {
       setClientsLoading(false);
     }
@@ -98,6 +103,32 @@ function CryptsPage() {
     setPageMessage("");
   };
 
+  const handleOpenCreateCryptModal = () => {
+    clearPageMessages();
+    setIsCreateCryptModalOpen(true);
+  };
+
+  const handleCreateCrypt = async (crypt: CryptPayload) => {
+    if (savingCrypt) return;
+
+    try {
+      setSavingCrypt(true);
+      clearPageMessages();
+
+      await apiService.crypts.create(crypt);
+
+      setIsCreateCryptModalOpen(false);
+      setPageMessage("Cripta registrada correctamente.");
+
+      await loadCrypts();
+    } catch (err) {
+      console.error("Error creating crypt:", err);
+      setPageError(getApiErrorMessage(err, "No se pudo registrar la cripta."));
+    } finally {
+      setSavingCrypt(false);
+    }
+  };
+
   const handleEditCrypt = (crypt: Crypt) => {
     clearPageMessages();
     setSelectedCrypt(crypt);
@@ -118,7 +149,7 @@ function CryptsPage() {
       await loadCrypts();
     } catch (err) {
       console.error("Error updating crypt:", err);
-      setPageError("No se pudo actualizar la cripta.");
+      setPageError(getApiErrorMessage(err, "No se pudo actualizar la cripta."));
     } finally {
       setSavingCrypt(false);
     }
@@ -189,7 +220,7 @@ function CryptsPage() {
       await loadClients();
     } catch (err) {
       console.error("Error creating sale:", err);
-      setPageError("No se pudo registrar la venta.");
+      setPageError(getApiErrorMessage(err, "No se pudo registrar la venta."));
     } finally {
       setSavingSale(false);
     }
@@ -230,7 +261,7 @@ function CryptsPage() {
       await loadClients();
     } catch (err) {
       console.error("Error creating payment:", err);
-      setPageError("No se pudo registrar el pago.");
+      setPageError(getApiErrorMessage(err, "No se pudo registrar el pago."));
     } finally {
       setSavingPayment(false);
     }
@@ -244,28 +275,35 @@ function CryptsPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "¿Seguro que deseas cancelar esta compra? Los pagos quedarán inactivos y la cripta volverá a estar disponible."
-    );
+    clearPageMessages();
+    setCryptToCancelPurchase(crypt);
+  };
 
-    if (!confirmed) return;
+  const handleConfirmCancelPurchase = async () => {
+    if (!cryptToCancelPurchase?.id || cancelingPurchase) return;
 
     try {
       setCancelingPurchase(true);
       clearPageMessages();
 
-      await apiService.crypts.cancelPurchase(crypt.id);
+      await apiService.crypts.cancelPurchase(cryptToCancelPurchase.id);
 
+      setCryptToCancelPurchase(null);
       setPageMessage("Compra cancelada correctamente.");
 
       await loadCrypts();
       await loadClients();
     } catch (err) {
       console.error("Error canceling purchase:", err);
-      setPageError("No se pudo cancelar la compra.");
+      setPageError(getApiErrorMessage(err, "No se pudo cancelar la compra."));
     } finally {
       setCancelingPurchase(false);
     }
+  };
+
+  const handleCloseCreateCryptModal = () => {
+    if (savingCrypt) return;
+    setIsCreateCryptModalOpen(false);
   };
 
   const handleCloseCryptModal = () => {
@@ -290,6 +328,15 @@ function CryptsPage() {
           <h1>Criptas</h1>
           <p>Consulta, edita y administra ventas de criptas.</p>
         </div>
+
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={handleOpenCreateCryptModal}
+          disabled={savingCrypt || savingSale || savingPayment || cancelingPurchase}
+        >
+          Registrar cripta
+        </button>
       </div>
 
       {error && <p className="error-message">{error}</p>}
@@ -376,9 +423,23 @@ function CryptsPage() {
       )}
 
       <Modal
+        isOpen={isCreateCryptModalOpen}
+        title="Registrar cripta"
+        onClose={handleCloseCreateCryptModal}
+        closeDisabled={savingCrypt}
+      >
+        <CryptForm
+          saving={savingCrypt}
+          onSubmit={handleCreateCrypt}
+          onCancel={handleCloseCreateCryptModal}
+        />
+      </Modal>
+
+      <Modal
         isOpen={selectedCrypt !== null}
         title="Editar cripta"
         onClose={handleCloseCryptModal}
+        closeDisabled={savingCrypt}
       >
         {selectedCrypt && (
           <CryptForm
@@ -394,11 +455,13 @@ function CryptsPage() {
         isOpen={selectedCryptForSale !== null}
         title="Registrar venta"
         onClose={handleCloseSaleModal}
+        closeDisabled={savingSale}
       >
         {selectedCryptForSale && (
           <SaleForm
             clients={clients.filter((client) => client.isActive)}
             saving={savingSale}
+            maxInitialPayment={selectedCryptForSale.cost}
             onSubmit={handleCreateSale}
             onCancel={handleCloseSaleModal}
           />
@@ -409,6 +472,7 @@ function CryptsPage() {
         isOpen={selectedCryptForPayment !== null}
         title="Registrar pago"
         onClose={handleClosePaymentModal}
+        closeDisabled={savingPayment}
       >
         {selectedCryptForPayment?.id && (
           <PaymentForm
@@ -419,6 +483,20 @@ function CryptsPage() {
           />
         )}
       </Modal>
+
+      <ConfirmModal
+        isOpen={cryptToCancelPurchase !== null}
+        title="Cancelar compra"
+        message="Los pagos quedarán inactivos y la cripta volverá a estar disponible."
+        confirmLabel="Cancelar compra"
+        confirming={cancelingPurchase}
+        onConfirm={handleConfirmCancelPurchase}
+        onCancel={() => {
+          if (!cancelingPurchase) {
+            setCryptToCancelPurchase(null);
+          }
+        }}
+      />
     </section>
   );
 }

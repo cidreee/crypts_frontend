@@ -31,3 +31,8 @@
 .modal-body {
   padding: 1.5rem;
 }
+
+.confirm-message {
+  margin-top: 0;
+  line-height: 1.5;
+}
