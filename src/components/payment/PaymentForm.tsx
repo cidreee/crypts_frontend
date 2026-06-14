@@ -9,7 +9,8 @@ type PaymentFormProps = {
   cryptId?: number;
   saving?: boolean;
   maxAmount?: number | null;
-  onSubmit: (payment: PaymentPayload) => void;
+  serverError?: string;
+  onSubmit: (payment: PaymentPayload) => Promise<void>;
   onCancel: () => void;
 };
 
@@ -40,12 +41,14 @@ function PaymentForm({
   cryptId,
   saving = false,
   maxAmount,
+  serverError = "",
   onSubmit,
   onCancel,
 }: PaymentFormProps) {
   const [formData, setFormData] = useState<PaymentFormData>(() =>
     getPaymentFormData(payment)
   );
+
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
@@ -62,6 +65,8 @@ function PaymentForm({
       ...prev,
       [name]: value,
     }));
+
+    setFormError("");
   };
 
   const validateForm = () => {
@@ -84,7 +89,7 @@ function PaymentForm({
     }
 
     if (maxAmount != null && amount > maxAmount) {
-      return "El monto no puede ser mayor al saldo pendiente.";
+      return `El monto no puede ser mayor al saldo pendiente: ${maxAmount}.`;
     }
 
     if (!formData.paymentDate) {
@@ -102,7 +107,7 @@ function PaymentForm({
     return "";
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (saving) return;
@@ -130,12 +135,14 @@ function PaymentForm({
       isActive: payment?.isActive ?? true,
     };
 
-    onSubmit(paymentToSubmit);
+    await onSubmit(paymentToSubmit);
   };
+
+  const visibleError = formError || serverError;
 
   return (
     <form className="form-container" onSubmit={handleSubmit}>
-      {formError && <p className="error-message">{formError}</p>}
+      {visibleError && <p className="error-message">{visibleError}</p>}
 
       <div className="form-group">
         <label>Monto</label>
@@ -151,6 +158,12 @@ function PaymentForm({
           required
         />
       </div>
+
+      {maxAmount != null && (
+        <p className="form-hint">
+          Saldo pendiente: {maxAmount}
+        </p>
+      )}
 
       <div className="form-group">
         <label>Fecha de pago</label>

@@ -161,7 +161,6 @@ function CryptForm({
       id: crypt?.id,
       clientId: crypt?.clientId ?? null,
       isAvailable: crypt?.isAvailable ?? true,
-      createdAt: crypt?.createdAt,
       section: Number(formData.section),
       letter: formData.letter.trim().toUpperCase(),
       number: formData.number.trim(),

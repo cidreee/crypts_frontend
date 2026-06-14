@@ -1,3 +1,5 @@
+// src/hooks/useCrypts.ts
+
 import { useCallback, useEffect, useState } from "react";
 import { apiService } from "../services/apiService";
 import type { Crypt } from "../types/crypt";
@@ -14,10 +16,16 @@ export function useCrypts() {
       setError("");
 
       const data = await apiService.crypts.getAll();
-      setCrypts(data);
+
+      const safeCrypts = Array.isArray(data)
+        ? data.filter((crypt): crypt is Crypt => crypt !== null && crypt !== undefined)
+        : [];
+
+      setCrypts(safeCrypts);
     } catch (err) {
-      console.error(err);
+      console.error("Error loading crypts:", err);
       setError(getApiErrorMessage(err, "No se pudieron cargar las criptas."));
+      setCrypts([]);
     } finally {
       setLoading(false);
     }

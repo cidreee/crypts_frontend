@@ -8,6 +8,8 @@ function Navbar() {
       </div>
 
       <div className="navbar-links">
+        
+
         <NavLink
           to="/crypts"
           className={({ isActive }) =>
@@ -23,7 +25,7 @@ function Navbar() {
           }
         >
           Clientes
-        </NavLink>        
+        </NavLink>
       </div>
     </nav>
   );
