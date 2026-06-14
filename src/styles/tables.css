@@ -1,25 +1,92 @@
 .table-container {
   overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
 }
 
-.clients-table {
+.clients-table,
+.data-table {
   width: 100%;
-  border-collapse: collapse;
-  background-color: white;
+  min-width: 820px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: var(--surface);
 }
 
 .clients-table th,
-.clients-table td {
-  padding: 0.85rem;
+.clients-table td,
+.data-table th,
+.data-table td {
+  padding: 0.9rem 1rem;
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
-.clients-table th {
+.clients-table th,
+.data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--surface-muted);
+  color: #475467;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.clients-table tbody tr,
+.data-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.clients-table tbody tr:hover,
+.data-table tbody tr:hover {
   background-color: #f9fafb;
+}
+
+.clients-table tbody tr:last-child td,
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.table-actions button {
+  min-height: 34px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.86rem;
+}
+
+.actions-select {
+  min-width: 170px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0.28rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
-.clients-table tr:hover {
-  background-color: #f3f4f6;
+.badge-active {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.badge-inactive {
+  background-color: #fee2e2;
+  color: #991b1b;
 }

@@ -1,9 +1,21 @@
 button {
+  min-height: 40px;
   padding: 0.65rem 1rem;
-  border: none;
-  border-radius: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
+  line-height: 1.2;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -12,17 +24,22 @@ button:disabled {
 }
 
 .btn-primary {
-  background-color: #2563eb;
+  background-color: var(--primary);
   color: white;
 }
 
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+}
+
 .btn-secondary {
-  background-color: #e5e7eb;
-  color: #111827;
+  background-color: white;
+  border-color: var(--border-strong);
+  color: var(--text);
 }
 
 .btn-danger {
-  background-color: #dc2626;
+  background-color: var(--danger);
   color: white;
 }
 
