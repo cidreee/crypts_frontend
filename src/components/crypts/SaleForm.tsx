@@ -259,7 +259,7 @@ function SaleForm({
     <form className="form-container" onSubmit={handleSubmit}>
       {formError && <p className="error-message">{formError}</p>}
 
-      <div className="form-group">
+      <div className="form-group form-group-full">
         <label>Tipo de cliente</label>
 
         <select
@@ -277,7 +277,7 @@ function SaleForm({
       </div>
 
       {formData.mode === "existing" && (
-        <div className="form-group">
+        <div className="form-group form-group-full">
           <label>Cliente</label>
 
           <select
@@ -323,7 +323,7 @@ function SaleForm({
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label>Celular</label>
 
             <div className="phone-input-group">

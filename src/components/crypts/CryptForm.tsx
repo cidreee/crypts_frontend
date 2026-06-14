@@ -40,6 +40,7 @@ function CryptForm({
   crypt,
   saving = false,
   onSubmit,
+  onCancel,
 }: CryptFormProps) {
   const [formData, setFormData] = useState<CryptFormData>(() =>
     getCryptFormData(crypt)
@@ -228,6 +229,25 @@ function CryptForm({
           disabled={saving}
           required
         />
+      </div>
+
+      <div className="form-actions">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancelar
+        </button>
+
+        <button type="submit" className="btn-primary" disabled={saving}>
+          {saving
+            ? "Guardando..."
+            : crypt
+            ? "Guardar cambios"
+            : "Registrar cripta"}
+        </button>
       </div>
     </form>
   );

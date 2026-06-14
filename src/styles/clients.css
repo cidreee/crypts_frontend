@@ -25,12 +25,26 @@
 .phone-input-group {
   display: flex;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .phone-input-group select {
-  max-width: 150px;
+  flex: 0 0 150px;
+  min-width: 118px;
 }
 
 .phone-input-group input {
   flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .phone-input-group {
+    flex-direction: column;
+  }
+
+  .phone-input-group select {
+    flex-basis: auto;
+    max-width: none;
+  }
 }
