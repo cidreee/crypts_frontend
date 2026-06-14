@@ -162,7 +162,7 @@ function ClientForm({
         />
       </div>
 
-      <div className="form-group">
+      <div className="form-group form-group-full">
         <label>Celular</label>
 
         <div className="phone-input-group">

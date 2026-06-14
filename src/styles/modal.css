@@ -15,10 +15,13 @@
 .modal-card {
   width: 100%;
   max-width: 650px;
+  max-height: calc(100vh - 2rem);
   background-color: white;
   border-radius: 8px;
   box-shadow: var(--shadow-md);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -37,6 +40,7 @@
 
 .modal-body {
   padding: 1.5rem;
+  overflow-y: auto;
 }
 
 .confirm-message {
