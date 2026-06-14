@@ -68,6 +68,33 @@ function CryptTable({
 
             const isPaid = !crypt.isAvailable && balanceDue <= 0;
             const hasPayments = paymentsCount > 0;
+            const handleActionChange = (
+              e: React.ChangeEvent<HTMLSelectElement>
+            ) => {
+              const action = e.target.value;
+
+              if (action === "edit") {
+                onEditCrypt(crypt);
+              }
+
+              if (action === "payments") {
+                onViewPayments(crypt);
+              }
+
+              if (action === "sale") {
+                onRegisterSale(crypt);
+              }
+
+              if (action === "payment") {
+                onRegisterPayment(crypt);
+              }
+
+              if (action === "cancel") {
+                onCancelPurchase(crypt);
+              }
+
+              e.target.value = "";
+            };
 
             return (
               <tr key={crypt.id}>
@@ -80,55 +107,31 @@ function CryptTable({
                 <td>{getPaymentStatusLabel(crypt)}</td>
 
                 <td>
-                  <div className="table-actions">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => onEditCrypt(crypt)}
-                    >
-                      Editar
-                    </button>
+                  <select
+                    className="actions-select"
+                    defaultValue=""
+                    onChange={handleActionChange}
+                  >
+                    <option value="" disabled>
+                      Seleccionar
+                    </option>
 
-                    {!crypt.isAvailable && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => onViewPayments(crypt)}
-                        disabled={!hasPayments}
-                      >
-                        Ver pagos
-                      </button>
-                    )}
+                    <option value="edit">Editar cripta</option>
 
                     {crypt.isAvailable ? (
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => onRegisterSale(crypt)}
-                      >
-                        Vender
-                      </button>
+                      <option value="sale">Registrar venta</option>
                     ) : (
                       <>
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          onClick={() => onRegisterPayment(crypt)}
-                          disabled={isPaid}
-                        >
+                        <option value="payments" disabled={!hasPayments}>
+                          Ver pagos
+                        </option>
+                        <option value="payment" disabled={isPaid}>
                           Registrar pago
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-danger"
-                          onClick={() => onCancelPurchase(crypt)}
-                        >
-                          Cancelar compra
-                        </button>
+                        </option>
+                        <option value="cancel">Cancelar compra</option>
                       </>
                     )}
-                  </div>
+                  </select>
                 </td>
               </tr>
             );

@@ -1,6 +1,6 @@
 button {
   min-height: 40px;
-  padding: 0.65rem 1rem;
+  padding: 0.65rem 0.95rem;
   border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
@@ -14,17 +14,19 @@ button {
 }
 
 button:hover:not(:disabled) {
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.08);
   transform: translateY(-1px);
 }
 
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-primary {
   background-color: var(--primary);
+  border-color: var(--primary);
   color: white;
 }
 
@@ -38,12 +40,23 @@ button:disabled {
   color: var(--text);
 }
 
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--surface-muted);
+  border-color: #98a2b3;
+}
+
 .btn-danger {
   background-color: var(--danger);
+  border-color: var(--danger);
   color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
 }
 
 .btn-edit {
   background-color: #f59e0b;
+  border-color: #f59e0b;
   color: white;
 }
