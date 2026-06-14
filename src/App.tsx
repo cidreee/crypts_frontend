@@ -11,7 +11,7 @@ function App() {
 
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Navigate to="/clients" replace />} />
+          <Route path="/" element={<Navigate to="/crypts" replace />} />
 
           <Route path="/clients" element={<ClientsPage />} />
 

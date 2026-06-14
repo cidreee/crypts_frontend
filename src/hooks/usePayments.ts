@@ -5,43 +5,53 @@ import { apiService } from "../services/apiService";
 import type { Payment } from "../types/payment";
 import { getApiErrorMessage } from "../utils/apiError";
 
-export function usePayments(clientId?: number) {
+export function usePayments(clientId: number, initialCryptId?: number) {
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [selectedCryptId, setSelectedCryptId] = useState<number | undefined>();
+  const [selectedCryptId, setSelectedCryptId] = useState<number | undefined>(
+    initialCryptId
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadPayments = useCallback(async (cryptId?: number) => {
-    if (!clientId) return;
+  const loadPayments = useCallback(
+    async (cryptId?: number) => {
+      if (!clientId || Number.isNaN(clientId)) return;
 
-    try {
-      setLoading(true);
-      setError("");
+      try {
+        setLoading(true);
+        setError("");
 
-      const data = await apiService.payments.getHistoryByClientId(
-        clientId,
-        cryptId
-      );
+        const data = await apiService.payments.getHistoryByClientId(
+          clientId,
+          cryptId
+        );
 
-      setPayments(data);
-    } catch (err) {
-      console.error(err);
-      setError(
-        getApiErrorMessage(err, "No se pudo cargar el historial de pagos.")
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId]);
-
-  const handleCryptFilterChange = async (cryptId?: number) => {
-    setSelectedCryptId(cryptId);
-    await loadPayments(cryptId);
-  };
+        setPayments(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Error loading payments:", err);
+        setError(
+          getApiErrorMessage(err, "No se pudo cargar el historial de pagos.")
+        );
+        setPayments([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [clientId]
+  );
 
   useEffect(() => {
-    loadPayments();
-  }, [loadPayments]);
+    setSelectedCryptId(initialCryptId);
+    loadPayments(initialCryptId);
+  }, [initialCryptId, loadPayments]);
+
+  const handleCryptFilterChange = useCallback(
+    async (cryptId?: number) => {
+      setSelectedCryptId(cryptId);
+      await loadPayments(cryptId);
+    },
+    [loadPayments]
+  );
 
   return {
     payments,

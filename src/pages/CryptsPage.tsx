@@ -1,4 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿// src/pages/CryptsPage.tsx
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCrypts } from "../hooks/useCrypts";
 import { apiService } from "../services/apiService";
 import type { Crypt, CryptPayload } from "../types/crypt";
@@ -11,21 +13,28 @@ import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
 import ConfirmModal from "../components/common/ConfirmModal";
 import { getApiErrorMessage } from "../utils/apiError";
+import { formatCurrency } from "../utils/format";
+import { useNavigate } from "react-router-dom";
 
 type AvailabilityFilter = "all" | "available" | "occupied";
 
 function CryptsPage() {
   const { crypts, loading, error, loadCrypts } = useCrypts();
 
+  const navigate = useNavigate();
+
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
 
   const [isCreateCryptModalOpen, setIsCreateCryptModalOpen] = useState(false);
   const [selectedCrypt, setSelectedCrypt] = useState<Crypt | null>(null);
+
   const [selectedCryptForSale, setSelectedCryptForSale] =
     useState<Crypt | null>(null);
+
   const [selectedCryptForPayment, setSelectedCryptForPayment] =
     useState<Crypt | null>(null);
+
   const [cryptToCancelPurchase, setCryptToCancelPurchase] =
     useState<Crypt | null>(null);
 
@@ -40,15 +49,37 @@ function CryptsPage() {
 
   const [pageMessage, setPageMessage] = useState("");
   const [pageError, setPageError] = useState("");
+  const [paymentModalError, setPaymentModalError] = useState("");
+
+  const isBusy =
+    savingCrypt || savingSale || savingPayment || cancelingPurchase;
+
+  const validCrypts = useMemo(() => {
+    return crypts.filter(
+      (crypt): crypt is Crypt => crypt !== null && crypt !== undefined
+    );
+  }, [crypts]);
 
   const loadClients = useCallback(async () => {
     try {
       setClientsLoading(true);
+
       const data = await apiService.clients.getClientsBalance();
-      setClients(data);
+
+      const safeClients = Array.isArray(data)
+        ? data.filter(
+            (client): client is Client =>
+              client !== null && client !== undefined
+          )
+        : [];
+
+      setClients(safeClients);
     } catch (err) {
       console.error("Error loading clients:", err);
-      setPageError(getApiErrorMessage(err, "No se pudieron cargar los clientes."));
+      setPageError(
+        getApiErrorMessage(err, "No se pudieron cargar los clientes.")
+      );
+      setClients([]);
     } finally {
       setClientsLoading(false);
     }
@@ -61,19 +92,26 @@ function CryptsPage() {
   const filteredCrypts = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
-    return crypts.filter((crypt) => {
-      const cryptCode = `${crypt.section}-${crypt.letter}-${crypt.number}`;
+    return validCrypts.filter((crypt) => {
+      const section = crypt.section?.toString() ?? "";
+      const letter = crypt.letter?.toLowerCase() ?? "";
+      const number = crypt.number?.toLowerCase() ?? "";
+
+      const cryptCode = `${section}-${letter}-${number}`;
+
       const clientName = crypt.client
-        ? `${crypt.client.firstName} ${crypt.client.lastName}`
+        ? `${crypt.client.firstName ?? ""} ${
+            crypt.client.lastName ?? ""
+          }`.toLowerCase()
         : "";
 
       const matchesSearch =
         normalizedSearch === "" ||
-        cryptCode.toLowerCase().includes(normalizedSearch) ||
-        crypt.section.toString().includes(normalizedSearch) ||
-        crypt.letter.toLowerCase().includes(normalizedSearch) ||
-        crypt.number.toLowerCase().includes(normalizedSearch) ||
-        clientName.toLowerCase().includes(normalizedSearch);
+        cryptCode.includes(normalizedSearch) ||
+        section.includes(normalizedSearch) ||
+        letter.includes(normalizedSearch) ||
+        number.includes(normalizedSearch) ||
+        clientName.includes(normalizedSearch);
 
       const isAvailable = Boolean(crypt.isAvailable);
 
@@ -84,19 +122,42 @@ function CryptsPage() {
 
       return matchesSearch && matchesAvailability;
     });
-  }, [crypts, searchTerm, availabilityFilter]);
+  }, [validCrypts, searchTerm, availabilityFilter]);
 
   const cryptSummary = useMemo(() => {
-    const totalCrypts = crypts.length;
-    const availableCrypts = crypts.filter((crypt) => crypt.isAvailable).length;
-    const occupiedCrypts = crypts.filter((crypt) => !crypt.isAvailable).length;
+    const totalCrypts = validCrypts.length;
+
+    const availableCrypts = validCrypts.filter((crypt) =>
+      Boolean(crypt.isAvailable)
+    ).length;
+
+    const occupiedCrypts = validCrypts.filter(
+      (crypt) => !Boolean(crypt.isAvailable)
+    ).length;
+
+  const soldCrypts = validCrypts.filter((crypt) => !crypt.isAvailable);
+
+  const totalAmount = soldCrypts.reduce((sum, crypt) => {
+    return sum + (crypt.balance?.totalAmount ?? crypt.cost ?? 0);
+  }, 0);
+
+  const totalPaid = soldCrypts.reduce((sum, crypt) => {
+    return sum + (crypt.balance?.totalPaid ?? 0);
+  }, 0);
+
+  const totalBalanceDue = soldCrypts.reduce((sum, crypt) => {
+    return sum + (crypt.balance?.balanceDue ?? 0);
+  }, 0);
 
     return {
       totalCrypts,
       availableCrypts,
       occupiedCrypts,
+      totalAmount,
+      totalPaid,
+      totalBalanceDue,
     };
-  }, [crypts]);
+  }, [validCrypts]);
 
   const clearPageMessages = () => {
     setPageError("");
@@ -106,6 +167,24 @@ function CryptsPage() {
   const handleOpenCreateCryptModal = () => {
     clearPageMessages();
     setIsCreateCryptModalOpen(true);
+  };
+
+  const handleViewPayments = (crypt: Crypt) => {
+    clearPageMessages();
+
+    const finalClientId = crypt.clientId ?? crypt.client?.id;
+
+    if (!crypt.id) {
+      setPageError("La cripta seleccionada no es válida.");
+      return;
+    }
+
+    if (!finalClientId) {
+      setPageError("Esta cripta no tiene cliente asignado.");
+      return;
+    }
+
+    navigate(`/clients/${finalClientId}/payments?cryptId=${crypt.id}&from=crypts`);
   };
 
   const handleCreateCrypt = async (crypt: CryptPayload) => {
@@ -228,6 +307,7 @@ function CryptsPage() {
 
   const handleRegisterPayment = (crypt: Crypt) => {
     clearPageMessages();
+    setPaymentModalError("");
 
     if (!crypt.id) {
       setPageError("La cripta seleccionada no es válida.");
@@ -239,15 +319,25 @@ function CryptsPage() {
       return;
     }
 
+    const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+
+    if (balanceDue <= 0) {
+      setPageError("Esta cripta ya está liquidada.");
+      return;
+    }
+
     setSelectedCryptForPayment(crypt);
   };
 
-  const handleCreatePayment = async (payment: PaymentPayload) => {
+  const handleCreatePayment = async (
+    payment: PaymentPayload
+  ): Promise<void> => {
     if (!selectedCryptForPayment?.id || savingPayment) return;
 
     try {
       setSavingPayment(true);
       clearPageMessages();
+      setPaymentModalError("");
 
       await apiService.payments.create({
         ...payment,
@@ -261,7 +351,9 @@ function CryptsPage() {
       await loadClients();
     } catch (err) {
       console.error("Error creating payment:", err);
-      setPageError(getApiErrorMessage(err, "No se pudo registrar el pago."));
+
+      const message = getApiErrorMessage(err, "No se pudo registrar el pago.");
+      setPaymentModalError(message);
     } finally {
       setSavingPayment(false);
     }
@@ -318,6 +410,8 @@ function CryptsPage() {
 
   const handleClosePaymentModal = () => {
     if (savingPayment) return;
+
+    setPaymentModalError("");
     setSelectedCryptForPayment(null);
   };
 
@@ -333,7 +427,7 @@ function CryptsPage() {
           type="button"
           className="btn-primary"
           onClick={handleOpenCreateCryptModal}
-          disabled={savingCrypt || savingSale || savingPayment || cancelingPurchase}
+          disabled={isBusy}
         >
           Registrar cripta
         </button>
@@ -358,6 +452,21 @@ function CryptsPage() {
           <span>Ocupadas</span>
           <strong>{cryptSummary.occupiedCrypts}</strong>
         </div>
+
+        <div className="summary-card">
+          <span>Total vendido</span>
+          <strong>{formatCurrency(cryptSummary.totalAmount)}</strong>
+        </div>
+
+        <div className="summary-card">
+          <span>Total pagado</span>
+          <strong>{formatCurrency(cryptSummary.totalPaid)}</strong>
+        </div>
+
+        <div className="summary-card">
+          <span>Total pendiente</span>
+          <strong>{formatCurrency(cryptSummary.totalBalanceDue)}</strong>
+        </div>
       </div>
 
       <div className="filters-container">
@@ -368,12 +477,7 @@ function CryptsPage() {
             placeholder="Buscar por cripta o cliente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={
-              savingCrypt ||
-              savingSale ||
-              savingPayment ||
-              cancelingPurchase
-            }
+            disabled={isBusy}
           />
         </div>
 
@@ -384,12 +488,7 @@ function CryptsPage() {
             onChange={(e) =>
               setAvailabilityFilter(e.target.value as AvailabilityFilter)
             }
-            disabled={
-              savingCrypt ||
-              savingSale ||
-              savingPayment ||
-              cancelingPurchase
-            }
+            disabled={isBusy}
           >
             <option value="all">Todas</option>
             <option value="available">Disponibles</option>
@@ -399,7 +498,7 @@ function CryptsPage() {
       </div>
 
       <p className="results-count">
-        Mostrando {filteredCrypts.length} de {crypts.length} criptas
+        Mostrando {filteredCrypts.length} de {cryptSummary.totalCrypts} criptas
       </p>
 
       {clientsLoading && <p>Cargando clientes...</p>}
@@ -419,6 +518,7 @@ function CryptsPage() {
           onRegisterSale={handleRegisterSale}
           onRegisterPayment={handleRegisterPayment}
           onCancelPurchase={handleCancelPurchase}
+          onViewPayments={handleViewPayments}
         />
       )}
 
@@ -461,7 +561,10 @@ function CryptsPage() {
           <SaleForm
             clients={clients.filter((client) => client.isActive)}
             saving={savingSale}
-            maxInitialPayment={selectedCryptForSale.cost}
+            maxInitialPayment={
+              selectedCryptForSale.balance?.balanceDue ??
+              selectedCryptForSale.cost
+            }
             onSubmit={handleCreateSale}
             onCancel={handleCloseSaleModal}
           />
@@ -478,6 +581,11 @@ function CryptsPage() {
           <PaymentForm
             cryptId={selectedCryptForPayment.id}
             saving={savingPayment}
+            maxAmount={
+              selectedCryptForPayment.balance?.balanceDue ??
+              selectedCryptForPayment.cost
+            }
+            serverError={paymentModalError}
             onSubmit={handleCreatePayment}
             onCancel={handleClosePaymentModal}
           />

@@ -1,5 +1,9 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { apiService } from "../services/apiService";
 import { usePayments } from "../hooks/usePayments";
 import type { Client } from "../types/client";
@@ -13,8 +17,17 @@ import Modal from "../components/common/Modal";
 function ClientPaymentHistoryPage() {
   const { clientId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const numericClientId = Number(clientId);
+
+  const cryptIdParam = searchParams.get("cryptId");
+  const fromParam = searchParams.get("from");
+
+  const initialCryptId =
+    cryptIdParam && !Number.isNaN(Number(cryptIdParam))
+      ? Number(cryptIdParam)
+      : undefined;
 
   const {
     payments,
@@ -22,7 +35,7 @@ function ClientPaymentHistoryPage() {
     loading,
     error,
     handleCryptFilterChange,
-  } = usePayments(numericClientId);
+  } = usePayments(numericClientId, initialCryptId);
 
   const [client, setClient] = useState<Client | null>(null);
   const [clientLoading, setClientLoading] = useState(false);
@@ -82,6 +95,32 @@ function ClientPaymentHistoryPage() {
   const totalFilteredPaid = useMemo(() => {
     return payments.reduce((sum, payment) => sum + payment.amount, 0);
   }, [payments]);
+
+  const handleBack = () => {
+    if (fromParam === "crypts") {
+      navigate("/crypts");
+      return;
+    }
+
+    navigate("/clients");
+  };
+
+  const handleFilterChange = async (cryptId?: number) => {
+    const newParams = new URLSearchParams(searchParams);
+
+    if (cryptId) {
+      newParams.set("cryptId", cryptId.toString());
+    } else {
+      newParams.delete("cryptId");
+    }
+
+    if (fromParam) {
+      newParams.set("from", fromParam);
+    }
+
+    setSearchParams(newParams);
+    await handleCryptFilterChange(cryptId);
+  };
 
   const handleEditPayment = (payment: Payment) => {
     setPageError("");
@@ -150,14 +189,16 @@ function ClientPaymentHistoryPage() {
               </strong>
             </p>
           )}
+
+          {selectedCryptId && (
+            <p>
+              Filtro aplicado: <strong>Cripta {selectedCryptId}</strong>
+            </p>
+          )}
         </div>
 
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => navigate("/clients")}
-        >
-          Volver a clientes
+        <button type="button" className="btn-secondary" onClick={handleBack}>
+          {fromParam === "crypts" ? "Volver a criptas" : "Volver a clientes"}
         </button>
       </div>
 
@@ -204,15 +245,21 @@ function ClientPaymentHistoryPage() {
               const value = e.target.value;
 
               if (value === "") {
-                handleCryptFilterChange(undefined);
+                handleFilterChange(undefined);
                 return;
               }
 
-              handleCryptFilterChange(Number(value));
+              handleFilterChange(Number(value));
             }}
             disabled={loading || savingPayment}
           >
             <option value="">Todas las criptas</option>
+
+            {selectedCryptId && cryptOptions.length === 0 && (
+              <option value={selectedCryptId}>
+                Cripta {selectedCryptId}
+              </option>
+            )}
 
             {cryptOptions.map((crypt) => (
               <option key={crypt.id} value={crypt.id}>
