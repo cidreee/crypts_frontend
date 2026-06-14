@@ -4,7 +4,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(17, 24, 39, 0.55);
+  background-color: rgba(17, 24, 39, 0.58);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -16,16 +16,23 @@
   width: 100%;
   max-width: 650px;
   background-color: white;
-  border-radius: 14px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
 }
 
 .modal-body {

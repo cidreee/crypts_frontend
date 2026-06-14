@@ -6,6 +6,7 @@ import "./styles/forms.css";
 import "./styles/tables.css";
 import "./styles/modal.css";
 import "./styles/clients.css";
+import "./styles/crypts.css";
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

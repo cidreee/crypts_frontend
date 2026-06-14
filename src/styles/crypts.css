@@ -1,26 +1,30 @@
 .filters-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) repeat(2, minmax(180px, 240px));
   gap: 1rem;
-  align-items: flex-end;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  align-items: end;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
 }
 
 .filters-container .form-group {
   display: flex;
   flex-direction: column;
-  min-width: 220px;
-}
-
-.filters-container input,
-.filters-container select {
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  min-width: 0;
 }
 
 .results-count {
-  margin-bottom: 1rem;
-  color: #555;
+  margin: -0.25rem 0 0;
+  color: var(--text-muted);
   font-size: 0.9rem;
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .filters-container {
+    grid-template-columns: 1fr;
+  }
 }
