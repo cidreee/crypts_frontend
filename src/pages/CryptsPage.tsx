@@ -187,26 +187,6 @@ function CryptsPage() {
     navigate(`/clients/${finalClientId}/payments?cryptId=${crypt.id}&from=crypts`);
   };
 
-  const handleCreateCrypt = async (crypt: CryptPayload) => {
-    if (savingCrypt) return;
-
-    try {
-      setSavingCrypt(true);
-      clearPageMessages();
-
-      await apiService.crypts.create(crypt);
-
-      setIsCreateCryptModalOpen(false);
-      setPageMessage("Cripta registrada correctamente.");
-
-      await loadCrypts();
-    } catch (err) {
-      console.error("Error creating crypt:", err);
-      setPageError(getApiErrorMessage(err, "No se pudo registrar la cripta."));
-    } finally {
-      setSavingCrypt(false);
-    }
-  };
 
   const handleEditCrypt = (crypt: Crypt) => {
     clearPageMessages();
@@ -423,15 +403,6 @@ function CryptsPage() {
           <h1>Criptas</h1>
           <p>Consulta, edita y administra ventas de criptas.</p>
         </div>
-
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={handleOpenCreateCryptModal}
-          disabled={isBusy}
-        >
-          Registrar cripta
-        </button>
       </div>
 
       {error && <p className="error-message">{error}</p>}
@@ -522,19 +493,6 @@ function CryptsPage() {
           onViewPayments={handleViewPayments}
         />
       )}
-
-      <Modal
-        isOpen={isCreateCryptModalOpen}
-        title="Registrar cripta"
-        onClose={handleCloseCreateCryptModal}
-        closeDisabled={savingCrypt}
-      >
-        <CryptForm
-          saving={savingCrypt}
-          onSubmit={handleCreateCrypt}
-          onCancel={handleCloseCreateCryptModal}
-        />
-      </Modal>
 
       <Modal
         isOpen={selectedCrypt !== null}
