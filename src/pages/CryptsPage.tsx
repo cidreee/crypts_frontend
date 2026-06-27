@@ -131,22 +131,22 @@ function CryptsPage() {
     ).length;
 
     const occupiedCrypts = validCrypts.filter(
-      (crypt) => !Boolean(crypt.isAvailable)
+      (crypt) => !crypt.isAvailable
     ).length;
 
-  const soldCrypts = validCrypts.filter((crypt) => !crypt.isAvailable);
+    const soldCrypts = validCrypts.filter((crypt) => !crypt.isAvailable);
 
-  const totalAmount = soldCrypts.reduce((sum, crypt) => {
-    return sum + (crypt.balance?.totalAmount ?? crypt.cost ?? 0);
-  }, 0);
+    const totalAmount = soldCrypts.reduce((sum, crypt) => {
+      return sum + (crypt.balance?.totalAmount ?? crypt.cost ?? 0);
+    }, 0);
 
-  const totalPaid = soldCrypts.reduce((sum, crypt) => {
-    return sum + (crypt.balance?.totalPaid ?? 0);
-  }, 0);
+    const totalPaid = soldCrypts.reduce((sum, crypt) => {
+      return sum + (crypt.balance?.totalPaid ?? 0);
+    }, 0);
 
-  const totalBalanceDue = soldCrypts.reduce((sum, crypt) => {
-    return sum + (crypt.balance?.balanceDue ?? 0);
-  }, 0);
+    const totalBalanceDue = soldCrypts.reduce((sum, crypt) => {
+      return sum + (crypt.balance?.balanceDue ?? 0);
+    }, 0);
 
     return {
       totalCrypts,

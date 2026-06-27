@@ -1,27 +1,3 @@
-.page-title {
-  margin-bottom: 1.5rem;
-  font-size: 2rem;
-  color: #111827;
-}
-
-.card {
-  background-color: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.filters {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.filters input {
-  flex: 1;
-}
-
 .phone-input-group {
   display: flex;
   gap: 0.5rem;

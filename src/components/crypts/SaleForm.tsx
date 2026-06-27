@@ -1,15 +1,15 @@
-﻿import { useEffect, useState } from "react";
-import { PAYMENT_METHODS } from "../../constants/paymentMethods";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import type { Client, ClientPayload } from "../../types/client";
 import type { PaymentPayload } from "../../types/payment";
+import PaymentFields from "../payment/PaymentFields";
 import {
   buildPhoneNumber,
   onlyDigits,
   validatePhoneNumber,
   type PhoneCountryCode,
 } from "../../utils/phone";
-import { getTodayLocalDate, isFutureDate } from "../../utils/date";
-import { hasMoreThanTwoDecimals } from "../../utils/number";
+import { getTodayLocalDate } from "../../utils/date";
+import { validatePaymentValues } from "../../utils/paymentValidation";
 
 type SaleMode = "existing" | "new";
 
@@ -20,7 +20,7 @@ type SaleFormProps = {
   onSubmit: (
     mode: SaleMode,
     clientData: number | ClientPayload,
-    initialPayment?: PaymentPayload
+    initialPayment: PaymentPayload
   ) => void;
   onCancel: () => void;
 };
@@ -32,15 +32,10 @@ type SaleFormData = {
   lastName: string;
   phoneCountryCode: PhoneCountryCode;
   phoneNumber: string;
-  hasInitialPayment: boolean;
   amount: string;
   paymentMethodId: string;
   paymentDate: string;
 };
-
-function getTodayDate() {
-  return getTodayLocalDate();
-}
 
 function getInitialFormData(clients: Client[]): SaleFormData {
   const firstClientId = clients[0]?.id?.toString() ?? "";
@@ -52,10 +47,9 @@ function getInitialFormData(clients: Client[]): SaleFormData {
     lastName: "",
     phoneCountryCode: "+52",
     phoneNumber: "",
-    hasInitialPayment: true, // 1. CAMBIADO A TRUE POR DEFAULT
     amount: "",
     paymentMethodId: "1",
-    paymentDate: getTodayDate(),
+    paymentDate: getTodayLocalDate(),
   };
 }
 
@@ -87,29 +81,17 @@ function SaleForm({
 
       return {
         ...prev,
-        mode: prev.mode,
         clientId: clients[0].id?.toString() ?? "",
       };
     });
   }, [clients]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value, type } = e.target;
+    const { name, value } = event.target;
 
     setFormError("");
-
-    if (type === "checkbox") {
-      const checked = (e.target as HTMLInputElement).checked;
-
-      setFormData((prev) => ({
-        ...prev,
-        [name]: checked,
-      }));
-
-      return;
-    }
 
     if (name === "phoneNumber") {
       setFormData((prev) => ({
@@ -141,6 +123,15 @@ function SaleForm({
     }));
   };
 
+  const fillInitialPayment = () => {
+    if (maxInitialPayment == null) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      amount: maxInitialPayment.toString(),
+    }));
+  };
+
   const validateClientData = () => {
     if (formData.mode === "existing") {
       const clientId = Number(formData.clientId);
@@ -163,46 +154,22 @@ function SaleForm({
     return validatePhoneNumber(formData);
   };
 
-  // 2. SIMPLIFICADO: Ya no pregunta si 'hasInitialPayment' es falso
   const validateInitialPayment = () => {
-    const amount = Number(formData.amount);
-
-    if (!formData.amount.trim()) {
-      return "Ingresa el monto del pago inicial.";
-    }
-
-    if (Number.isNaN(amount)) {
-      return "El monto del pago inicial debe ser un número válido.";
-    }
-
-    if (amount <= 0) {
-      return "El monto del pago inicial debe ser mayor a 0.";
-    }
-
-    if (hasMoreThanTwoDecimals(formData.amount)) {
-      return "El monto del pago inicial no puede tener más de 2 decimales.";
-    }
-
-    if (maxInitialPayment != null && amount > maxInitialPayment) {
-      return "El pago inicial no puede ser mayor al costo de la cripta.";
-    }
-
-    if (!formData.paymentDate) {
-      return "Selecciona la fecha del pago inicial.";
-    }
-
-    if (isFutureDate(formData.paymentDate)) {
-      return "La fecha del pago inicial no puede ser futura.";
-    }
-
-    if (!formData.paymentMethodId) {
-      return "Selecciona el método de pago.";
-    }
-
-    return "";
+    return validatePaymentValues(formData, {
+      maxAmount: maxInitialPayment,
+      amountRequiredMessage: "Ingresa el monto del pago inicial.",
+      invalidAmountMessage:
+        "El monto del pago inicial debe ser un número válido.",
+      positiveAmountMessage: "El monto del pago inicial debe ser mayor a 0.",
+      decimalsMessage:
+        "El monto del pago inicial no puede tener más de 2 decimales.",
+      maxAmountMessage: "El pago inicial no puede ser mayor al costo de la cripta.",
+      dateRequiredMessage: "Selecciona la fecha del pago inicial.",
+      futureDateMessage: "La fecha del pago inicial no puede ser futura.",
+      methodRequiredMessage: "Selecciona el método de pago.",
+    });
   };
 
-  // 3. SIMPLIFICADO: Siempre construye el payload del pago
   const buildInitialPayment = (): PaymentPayload => {
     return {
       cryptId: 0,
@@ -213,8 +180,8 @@ function SaleForm({
     };
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
 
     if (saving) return;
 
@@ -239,14 +206,16 @@ function SaleForm({
       return;
     }
 
-    const newClient: ClientPayload = {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      phoneNumber: buildPhoneNumber(formData),
-      isActive: true,
-    };
-
-    onSubmit("new", newClient, initialPayment);
+    onSubmit(
+      "new",
+      {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phoneNumber: buildPhoneNumber(formData),
+        isActive: true,
+      },
+      initialPayment
+    );
   };
 
   return (
@@ -254,9 +223,10 @@ function SaleForm({
       {formError && <p className="error-message">{formError}</p>}
 
       <div className="form-group form-group-full">
-        <label>Tipo de cliente</label>
+        <label htmlFor="sale-client-mode">Tipo de cliente</label>
 
         <select
+          id="sale-client-mode"
           name="mode"
           value={formData.mode}
           onChange={handleChange}
@@ -272,9 +242,10 @@ function SaleForm({
 
       {formData.mode === "existing" && (
         <div className="form-group form-group-full">
-          <label>Cliente</label>
+          <label htmlFor="sale-client-id">Cliente</label>
 
           <select
+            id="sale-client-id"
             name="clientId"
             value={formData.clientId}
             onChange={handleChange}
@@ -294,31 +265,33 @@ function SaleForm({
       {formData.mode === "new" && (
         <>
           <div className="form-group">
-            <label>Nombre</label>
+            <label htmlFor="sale-first-name">Nombre</label>
             <input
               type="text"
+              id="sale-first-name"
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
               disabled={saving}
-              required={formData.mode === "new"}
+              required
             />
           </div>
 
           <div className="form-group">
-            <label>Apellido</label>
+            <label htmlFor="sale-last-name">Apellido</label>
             <input
               type="text"
+              id="sale-last-name"
               name="lastName"
               value={formData.lastName}
               onChange={handleChange}
               disabled={saving}
-              required={formData.mode === "new"}
+              required
             />
           </div>
 
           <div className="form-group form-group-full">
-            <label>Celular</label>
+            <label htmlFor="sale-phone-number">Celular</label>
 
             <div className="phone-input-group">
               <select
@@ -326,6 +299,7 @@ function SaleForm({
                 value={formData.phoneCountryCode}
                 onChange={handleChange}
                 disabled={saving}
+                aria-label="Código de país"
               >
                 <option value="+52">+52 México</option>
                 <option value="+1">+1 USA/Canadá</option>
@@ -333,6 +307,7 @@ function SaleForm({
 
               <input
                 type="tel"
+                id="sale-phone-number"
                 name="phoneNumber"
                 value={formData.phoneNumber}
                 onChange={handleChange}
@@ -345,71 +320,19 @@ function SaleForm({
         </>
       )}
 
-      {/* 4. ELIMINADO: Se removió por completo el div de la 'checkbox-group' */}
-
-      {/* 5. AHORA ESTOS CAMPOS SE RENDERIZAN SIEMPRE */}
-      <div className="form-group">
-        <label htmlFor="amount">Monto a pagar</label>
-        <div className="currency-input-wrapper">
-          <span className="currency-symbol">$</span>
-          <input
-            type="number"
-            id="amount"
-            name="amount"
-            value={formData.amount}
-            onChange={handleChange}
-            min="0.01"
-            step="0.01"
-            placeholder="0.00"        
-            required
-          />
-        </div>
-
-        {/* TEXTO DE AYUDA + BOTÓN RÁPIDO PARA EL PAGO INICIAL */}
-        {maxInitialPayment != null && maxInitialPayment > 0 && (
-          <div className="amount-helper-container">
-            <span className="form-hint">Costo total: <strong>${maxInitialPayment}</strong></span>
-            <button 
-              type="button" 
-              className="btn-link-action"
-              onClick={() => setFormData(prev => ({ ...prev, amount: maxInitialPayment.toString() }))}
-              disabled={saving}
-            >
-              Liquidar cripta
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="form-group">
-        <label>Fecha de pago</label>
-        <input
-          type="date"
-          name="paymentDate"
-          value={formData.paymentDate}
-          onChange={handleChange}
-          max={getTodayDate()}
-          disabled={saving}
-          required // Siempre requerido
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Método de pago</label>
-        <select
-          name="paymentMethodId"
-          value={formData.paymentMethodId}
-          onChange={handleChange}
-          disabled={saving}
-          required // Siempre requerido
-        >
-          {PAYMENT_METHODS.map((paymentMethod) => (
-            <option key={paymentMethod.id} value={paymentMethod.id}>
-              {paymentMethod.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PaymentFields
+        idPrefix="sale"
+        amountLabel="Monto a pagar"
+        helperLabel="Costo total"
+        shortcutLabel="Liquidar cripta"
+        amount={formData.amount}
+        paymentDate={formData.paymentDate}
+        paymentMethodId={formData.paymentMethodId}
+        maxAmount={maxInitialPayment}
+        disabled={saving}
+        onChange={handleChange}
+        onAmountShortcut={fillInitialPayment}
+      />
 
       <div className="form-actions">
         <button
