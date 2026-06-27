@@ -323,8 +323,8 @@ function SaleForm({
       <PaymentFields
         idPrefix="sale"
         amountLabel="Monto a pagar"
-        helperLabel="Costo total"
-        shortcutLabel="Liquidar cripta"
+        helperLabel="Pendiente por pagar"
+        shortcutLabel="Pagar todo"
         amount={formData.amount}
         paymentDate={formData.paymentDate}
         paymentMethodId={formData.paymentMethodId}

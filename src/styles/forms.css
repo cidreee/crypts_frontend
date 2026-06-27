@@ -22,6 +22,7 @@
 .form-group-full,
 .form-container > .error-message,
 .form-container > .success-message,
+.form-container > .payment-amount-summary,
 .form-container > .form-actions {
   grid-column: 1 / -1;
 }
@@ -150,38 +151,59 @@ input[name="amount"],
   box-shadow: none;
 }
 
-.amount-helper-container {
+.payment-amount-summary {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.15rem;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
 }
 
-.amount-helper-container .form-hint strong {
-  color: var(--text);
+.payment-amount-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
 }
 
-.btn-link-action {
-  border: 0;
-  background: transparent;
-  color: var(--primary);
-  font-size: 0.84rem;
-  font-weight: 700;
-  line-height: 1.35;
-  padding: 0;
-  cursor: pointer;
-}
-
-.btn-link-action:hover {
+.payment-amount-summary span {
   color: var(--primary-dark);
-  text-decoration: underline;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
-.btn-link-action:disabled {
-  color: #98a2b3;
-  cursor: not-allowed;
-  text-decoration: none;
+.payment-amount-summary strong {
+  color: var(--text);
+  font-size: 1.28rem;
+  line-height: 1.1;
+}
+
+.btn-amount-fill {
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding: 0.52rem 0.8rem;
+  background: var(--surface);
+  border: 1px solid #93c5fd;
+  color: var(--primary-dark);
+  font-size: 0.86rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-amount-fill:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #60a5fa;
+}
+
+.btn-amount-fill:disabled {
+  background: var(--surface-muted);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
 }
 
 @media (max-width: 680px) {
@@ -193,7 +215,16 @@ input[name="amount"],
     flex-direction: column-reverse;
   }
 
+  .payment-amount-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .form-actions button {
+    width: 100%;
+  }
+
+  .btn-amount-fill {
     width: 100%;
   }
 }
