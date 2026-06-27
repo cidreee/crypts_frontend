@@ -512,8 +512,10 @@ function CryptsPage() {
             clients={clients.filter((client) => client.isActive)}
             saving={savingSale}
             maxInitialPayment={
-              selectedCryptForSale.balance?.balanceDue ??
-              selectedCryptForSale.cost
+              selectedCryptForSale.balance?.balanceDue &&
+              selectedCryptForSale.balance.balanceDue > 0
+                ? selectedCryptForSale.balance.balanceDue
+                : selectedCryptForSale.cost
             }
             onSubmit={handleCreateSale}
             onCancel={handleCloseSaleModal}
