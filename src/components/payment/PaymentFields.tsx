@@ -37,6 +37,26 @@ function PaymentFields({
 
   return (
     <>
+      {showAmountHelper && (
+        <div className="payment-amount-summary">
+          <div>
+            <span>{helperLabel}</span>
+            <strong>{formatCurrency(maxAmount)}</strong>
+          </div>
+
+          {shortcutLabel && onAmountShortcut && (
+            <button
+              type="button"
+              className="btn-amount-fill"
+              onClick={onAmountShortcut}
+              disabled={disabled}
+            >
+              {shortcutLabel}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="form-group">
         <label htmlFor={amountId}>{amountLabel}</label>
 
@@ -56,25 +76,6 @@ function PaymentFields({
             placeholder="0.00"
           />
         </div>
-
-        {showAmountHelper && (
-          <div className="amount-helper-container">
-            <span className="form-hint">
-              {helperLabel}: <strong>{formatCurrency(maxAmount)}</strong>
-            </span>
-
-            {shortcutLabel && onAmountShortcut && (
-              <button
-                type="button"
-                className="btn-link-action"
-                onClick={onAmountShortcut}
-                disabled={disabled}
-              >
-                {shortcutLabel}
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="form-group">

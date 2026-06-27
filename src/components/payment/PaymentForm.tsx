@@ -129,7 +129,7 @@ function PaymentForm({
       <PaymentFields
         idPrefix="payment"
         amountLabel="Monto"
-        helperLabel="Saldo pendiente"
+        helperLabel="Pendiente por pagar"
         shortcutLabel="Pagar todo"
         amount={formData.amount}
         paymentDate={formData.paymentDate}
