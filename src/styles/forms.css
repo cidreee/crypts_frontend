@@ -1,3 +1,6 @@
+/* ==========================================================================
+   1. BASE DEL FORMULARIO Y ESTRUCTURA (SE QUEDA IGUAL)
+   ========================================================================== */
 .form-container {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -34,20 +37,29 @@
   grid-column: 1 / -1;
 }
 
+/* ==========================================================================
+   2. INPUTS, SELECTS Y COMPORTAMIENTOS (SE QUEDA IGUAL + AJUSTES INHERIT)
+   ========================================================================== */
 input,
-select {
+select,
+.currency-input-wrapper { /* <--- Agregado aquí para heredar bordes y paddings base */
   min-height: 42px;
   width: 100%;
-  padding: 0.65rem 0.75rem;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   background-color: white;
   color: var(--text);
   font-size: 0.95rem;
   line-height: 1.35;
+  box-sizing: border-box;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+/* El input y select normal llevan su padding */
+input, select {
+  padding: 0.65rem 0.75rem;
 }
 
 select {
@@ -85,13 +97,18 @@ input[type="checkbox"] {
   accent-color: var(--primary);
 }
 
+/* Focus unificado para inputs, selectores y el wrapper de moneda */
 input:focus,
-select:focus {
+select:focus,
+.currency-input-wrapper:focus-within {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); /* Usa tu color primary */
 }
 
+/* ==========================================================================
+   3. SECCIONES ESPECIALES (CHECKBOX, HINTS, ACCIONES)
+   ========================================================================== */
 .checkbox-group {
   display: flex;
   align-items: center;
@@ -111,6 +128,7 @@ select:focus {
   cursor: pointer;
 }
 
+/* Form hint general (Para textos informativos estándar) */
 .form-hint {
   margin: -0.35rem 0 0;
   color: var(--text-muted);
@@ -133,6 +151,93 @@ select:focus {
   min-width: 132px;
 }
 
+/* Ocultar flechas del input number */
+input[name="amount"]::-webkit-outer-spin-button,
+input[name="amount"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[name="amount"],
+.currency-input-wrapper input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ==========================================================================
+   4. LO QUE CAMBIÓ: MEZCLA Y REDISEÑO DEL INPUT DE MONEDA Y HELPER 
+   ========================================================================== */
+
+/* El Contenedor ahora es flex para alinear el $, pero sus bordes vienen del paso 2 */
+.currency-input-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 0 !important; /* Quitamos padding para que no empuje al input interno */
+}
+
+/* Símbolo de pesos adaptado al padding nativo */
+.currency-symbol {
+  padding-left: 0.75rem;
+  color: #667085;
+  font-weight: 500;
+  user-select: none;
+}
+
+/* El input interno modificado de forma limpia sin romper nada */
+.currency-input-wrapper input {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0.65rem 0.75rem 0.65rem 0.35rem !important; /* Ajuste perfecto */
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Contenedor de ayuda debajo del input */
+.amount-helper-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 0.85rem;
+}
+
+/* Variación específica para el texto destacado del saldo */
+.amount-helper-container .form-hint {
+  margin: 0;
+  color: #555555;
+}
+
+.amount-helper-container .form-hint strong {
+  color: var(--text);
+}
+
+/* Botón de acción rápida (Pagar todo) adaptado a tus variables */
+.btn-link-action {
+  background: none;
+  border: none;
+  color: var(--primary); /* Cambiado para usar tu color global */
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-size: 0.85rem;
+}
+
+.btn-link-action:hover {
+  filter: brightness(0.85); /* Se oscurece sutilmente al pasar el mouse */
+}
+
+.btn-link-action:disabled {
+  color: #98a2b3;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+/* ==========================================================================
+   5. RESPONSIVE (SE QUEDA IGUAL)
+   ========================================================================== */
 @media (max-width: 680px) {
   .form-container,
   .form-grid {

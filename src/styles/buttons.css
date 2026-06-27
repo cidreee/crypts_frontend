@@ -60,3 +60,44 @@ button:disabled {
   border-color: #f59e0b;
   color: white;
 }
+
+/* Estilo base para todas las burbujas */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 50px; /* Hace que se vea como óvalo/burbuja */
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Colores específicos por estado */
+
+/* Disponible - Verde */
+.status-available {
+  background-color: #e6f4ea;
+  color: #137333;
+  border: 1px solid #c2e7cd;
+}
+
+/* Sin Pago - Rojo/Rosa */
+.status-no-payment {
+  background-color: #fce8e6;
+  color: #c5221f;
+  border: 1px solid #fad2cf;
+}
+
+/* Abonando - Amarillo/Naranja */
+.status-paying {
+  background-color: #fef7e0;
+  color: #b06000;
+  border: 1px solid #feebc8;
+}
+
+/* Liquidada - Azul o Verde Oscuro */
+.status-completed {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  border: 1px solid #d2e3fc;
+}

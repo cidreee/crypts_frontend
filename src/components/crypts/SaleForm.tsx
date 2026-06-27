@@ -52,7 +52,7 @@ function getInitialFormData(clients: Client[]): SaleFormData {
     lastName: "",
     phoneCountryCode: "+52",
     phoneNumber: "",
-    hasInitialPayment: false,
+    hasInitialPayment: true, // 1. CAMBIADO A TRUE POR DEFAULT
     amount: "",
     paymentMethodId: "1",
     paymentDate: getTodayDate(),
@@ -163,11 +163,8 @@ function SaleForm({
     return validatePhoneNumber(formData);
   };
 
+  // 2. SIMPLIFICADO: Ya no pregunta si 'hasInitialPayment' es falso
   const validateInitialPayment = () => {
-    if (!formData.hasInitialPayment) {
-      return "";
-    }
-
     const amount = Number(formData.amount);
 
     if (!formData.amount.trim()) {
@@ -205,11 +202,8 @@ function SaleForm({
     return "";
   };
 
-  const buildInitialPayment = (): PaymentPayload | undefined => {
-    if (!formData.hasInitialPayment) {
-      return undefined;
-    }
-
+  // 3. SIMPLIFICADO: Siempre construye el payload del pago
+  const buildInitialPayment = (): PaymentPayload => {
     return {
       cryptId: 0,
       amount: Number(formData.amount),
@@ -351,67 +345,71 @@ function SaleForm({
         </>
       )}
 
-      <div className="form-group checkbox-group">
-        <label>
+      {/* 4. ELIMINADO: Se removió por completo el div de la 'checkbox-group' */}
+
+      {/* 5. AHORA ESTOS CAMPOS SE RENDERIZAN SIEMPRE */}
+      <div className="form-group">
+        <label htmlFor="amount">Monto a pagar</label>
+        <div className="currency-input-wrapper">
+          <span className="currency-symbol">$</span>
           <input
-            type="checkbox"
-            name="hasInitialPayment"
-            checked={formData.hasInitialPayment}
+            type="number"
+            id="amount"
+            name="amount"
+            value={formData.amount}
             onChange={handleChange}
-            disabled={saving}
+            min="0.01"
+            step="0.01"
+            placeholder="0.00"        
+            required
           />
-          Registrar pago inicial
-        </label>
+        </div>
+
+        {/* TEXTO DE AYUDA + BOTÓN RÁPIDO PARA EL PAGO INICIAL */}
+        {maxInitialPayment != null && maxInitialPayment > 0 && (
+          <div className="amount-helper-container">
+            <span className="form-hint">Costo total: <strong>${maxInitialPayment}</strong></span>
+            <button 
+              type="button" 
+              className="btn-link-action"
+              onClick={() => setFormData(prev => ({ ...prev, amount: maxInitialPayment.toString() }))}
+              disabled={saving}
+            >
+              Liquidar cripta
+            </button>
+          </div>
+        )}
       </div>
 
-      {formData.hasInitialPayment && (
-        <>
-          <div className="form-group">
-            <label>Monto del pago inicial</label>
-            <input
-              type="number"
-              name="amount"
-              value={formData.amount}
-              onChange={handleChange}
-              min="0.01"
-              max={maxInitialPayment ?? undefined}
-              step="0.01"
-              disabled={saving}
-              required={formData.hasInitialPayment}
-            />
-          </div>
+      <div className="form-group">
+        <label>Fecha de pago</label>
+        <input
+          type="date"
+          name="paymentDate"
+          value={formData.paymentDate}
+          onChange={handleChange}
+          max={getTodayDate()}
+          disabled={saving}
+          required // Siempre requerido
+        />
+      </div>
 
-          <div className="form-group">
-            <label>Fecha de pago</label>
-            <input
-              type="date"
-              name="paymentDate"
-              value={formData.paymentDate}
-              onChange={handleChange}
-              max={getTodayDate()}
-              disabled={saving}
-              required={formData.hasInitialPayment}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Método de pago</label>
-            <select
-              name="paymentMethodId"
-              value={formData.paymentMethodId}
-              onChange={handleChange}
-              disabled={saving}
-              required={formData.hasInitialPayment}
-            >
-              {PAYMENT_METHODS.map((paymentMethod) => (
-                <option key={paymentMethod.id} value={paymentMethod.id}>
-                  {paymentMethod.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </>
-      )}
+      <div className="form-group">
+        <label>Método de pago</label>
+        <select
+          name="paymentMethodId"
+          value={formData.paymentMethodId}
+          onChange={handleChange}
+          disabled={saving}
+          required // Siempre requerido
+        >
+          {PAYMENT_METHODS.map((paymentMethod) => (
+            <option key={paymentMethod.id} value={paymentMethod.id}>
+              {paymentMethod.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="form-actions">
         <button

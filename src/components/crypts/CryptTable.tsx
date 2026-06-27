@@ -1,7 +1,6 @@
 ﻿import type { Crypt } from "../../types/crypt";
 import { formatCurrency } from "../../utils/format";
 
-
 type CryptTableProps = {
   crypts: Crypt[];
   onEditCrypt: (crypt: Crypt) => void;
@@ -11,23 +10,30 @@ type CryptTableProps = {
   onViewPayments: (crypt: Crypt) => void;
 };
 
+// Mantiene tu lógica para el texto
 function getPaymentStatusLabel(crypt: Crypt) {
-  if (crypt.isAvailable) {
-    return "Disponible";
-  }
+  if (crypt.isAvailable) return "Disponible";
 
   const totalPaid = crypt.balance?.totalPaid ?? 0;
   const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
 
-  if (totalPaid <= 0) {
-    return "Sin pago";
-  }
-
-  if (balanceDue > 0) {
-    return "Abonando";
-  }
+  if (totalPaid <= 0) return "Sin pago";
+  if (balanceDue > 0) return "Abonando";
 
   return "Liquidada";
+}
+
+// NUEVA FUNCIÓN: Retorna la clase CSS de la burbuja según el estado
+function getPaymentStatusClass(crypt: Crypt) {
+  if (crypt.isAvailable) return "status-available";
+
+  const totalPaid = crypt.balance?.totalPaid ?? 0;
+  const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+
+  if (totalPaid <= 0) return "status-no-payment";
+  if (balanceDue > 0) return "status-paying";
+
+  return "status-completed";
 }
 
 function CryptTable({
@@ -68,30 +74,17 @@ function CryptTable({
 
             const isPaid = !crypt.isAvailable && balanceDue <= 0;
             const hasPayments = paymentsCount > 0;
+
             const handleActionChange = (
               e: React.ChangeEvent<HTMLSelectElement>
             ) => {
               const action = e.target.value;
 
-              if (action === "edit") {
-                onEditCrypt(crypt);
-              }
-
-              if (action === "payments") {
-                onViewPayments(crypt);
-              }
-
-              if (action === "sale") {
-                onRegisterSale(crypt);
-              }
-
-              if (action === "payment") {
-                onRegisterPayment(crypt);
-              }
-
-              if (action === "cancel") {
-                onCancelPurchase(crypt);
-              }
+              if (action === "edit") onEditCrypt(crypt);
+              if (action === "payments") onViewPayments(crypt);
+              if (action === "sale") onRegisterSale(crypt);
+              if (action === "payment") onRegisterPayment(crypt);
+              if (action === "cancel") onCancelPurchase(crypt);
 
               e.target.value = "";
             };
@@ -101,10 +94,18 @@ function CryptTable({
                 <td>{cryptCode}</td>
                 <td>{clientName}</td>
                 <td>{formatCurrency(crypt.cost)}</td>
-                <td>{formatCurrency(totalPaid)}</td>
-                <td>{formatCurrency(balanceDue)}</td>
-                <td>{paymentsCount}</td>
-                <td>{getPaymentStatusLabel(crypt)}</td>
+                <td>{crypt.client ? formatCurrency(totalPaid) : "-"}</td>
+                
+                <td>{crypt.client ? formatCurrency(balanceDue) : "-"}</td>
+                
+                <td>{crypt.client ? paymentsCount : "-"}</td>
+                
+                {/* MODIFICACIÓN AQUÍ: Se añade el span con clases dinámicas */}
+                <td>
+                  <span className={`badge ${getPaymentStatusClass(crypt)}`}>
+                    {getPaymentStatusLabel(crypt)}
+                  </span>
+                </td>
 
                 <td>
                   <select

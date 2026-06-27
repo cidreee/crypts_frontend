@@ -145,18 +145,38 @@ function PaymentForm({
       {visibleError && <p className="error-message">{visibleError}</p>}
 
       <div className="form-group">
-        <label>Monto</label>
-        <input
-          type="number"
-          name="amount"
-          value={formData.amount}
-          onChange={handleChange}
-          min="0.01"
-          max={maxAmount ?? undefined}
-          step="0.01"
-          disabled={saving}
-          required
-        />
+        <label htmlFor="amount">Monto</label>
+        <div className="currency-input-wrapper">
+          <span className="currency-symbol">$</span>
+          <input
+            type="number"
+            id="amount"
+            name="amount"
+            value={formData.amount}
+            onChange={handleChange}
+            min="0.01"
+            max={maxAmount ?? undefined}
+            step="0.01"
+            disabled={saving}
+            required
+            placeholder="0.00"
+          />
+        </div>
+        
+        {/* TEXTO DE AYUDA + BOTÓN RÁPIDO */}
+        {maxAmount != null && maxAmount > 0 && (
+          <div className="amount-helper-container">
+            <span className="form-hint">Saldo pendiente: <strong>${maxAmount}</strong></span>
+            <button 
+              type="button" 
+              className="btn-link-action"
+              onClick={() => setFormData(prev => ({ ...prev, amount: maxAmount.toString() }))}
+              disabled={saving}
+            >
+              Pagar todo
+            </button>
+          </div>
+        )}
       </div>
 
       {maxAmount != null && (

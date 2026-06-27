@@ -26,7 +26,6 @@ function CryptsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
 
-  const [isCreateCryptModalOpen, setIsCreateCryptModalOpen] = useState(false);
   const [selectedCrypt, setSelectedCrypt] = useState<Crypt | null>(null);
 
   const [selectedCryptForSale, setSelectedCryptForSale] =
@@ -164,10 +163,6 @@ function CryptsPage() {
     setPageMessage("");
   };
 
-  const handleOpenCreateCryptModal = () => {
-    clearPageMessages();
-    setIsCreateCryptModalOpen(true);
-  };
 
   const handleViewPayments = (crypt: Crypt) => {
     clearPageMessages();
@@ -373,10 +368,6 @@ function CryptsPage() {
     }
   };
 
-  const handleCloseCreateCryptModal = () => {
-    if (savingCrypt) return;
-    setIsCreateCryptModalOpen(false);
-  };
 
 
   const handleCloseCryptModal = () => {
