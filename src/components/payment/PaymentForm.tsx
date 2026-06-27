@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { PAYMENT_METHODS } from "../../constants/paymentMethods";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import type { Payment, PaymentPayload } from "../../types/payment";
-import { getTodayLocalDate, isFutureDate } from "../../utils/date";
-import { hasMoreThanTwoDecimals } from "../../utils/number";
+import { getTodayLocalDate } from "../../utils/date";
+import { validatePaymentValues } from "../../utils/paymentValidation";
+import PaymentFields from "./PaymentFields";
 
 type PaymentFormProps = {
   payment?: Payment | null;
@@ -48,7 +48,6 @@ function PaymentForm({
   const [formData, setFormData] = useState<PaymentFormData>(() =>
     getPaymentFormData(payment)
   );
-
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
@@ -57,9 +56,9 @@ function PaymentForm({
   }, [payment]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
+    const { name, value } = event.target;
 
     setFormData((prev) => ({
       ...prev,
@@ -69,46 +68,31 @@ function PaymentForm({
     setFormError("");
   };
 
-  const validateForm = () => {
-    const amount = Number(formData.amount);
+  const fillMaxAmount = () => {
+    if (maxAmount == null) return;
 
-    if (!formData.amount.trim()) {
-      return "El monto es obligatorio.";
-    }
-
-    if (Number.isNaN(amount)) {
-      return "El monto debe ser un número válido.";
-    }
-
-    if (amount <= 0) {
-      return "El monto debe ser mayor a 0.";
-    }
-
-    if (hasMoreThanTwoDecimals(formData.amount)) {
-      return "El monto no puede tener más de 2 decimales.";
-    }
-
-    if (maxAmount != null && amount > maxAmount) {
-      return `El monto no puede ser mayor al saldo pendiente: ${maxAmount}.`;
-    }
-
-    if (!formData.paymentDate) {
-      return "La fecha de pago es obligatoria.";
-    }
-
-    if (isFutureDate(formData.paymentDate)) {
-      return "La fecha de pago no puede ser futura.";
-    }
-
-    if (!formData.paymentMethodId) {
-      return "Selecciona un método de pago.";
-    }
-
-    return "";
+    setFormData((prev) => ({
+      ...prev,
+      amount: maxAmount.toString(),
+    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateForm = () => {
+    return validatePaymentValues(formData, {
+      maxAmount,
+      amountRequiredMessage: "El monto es obligatorio.",
+      invalidAmountMessage: "El monto debe ser un número válido.",
+      positiveAmountMessage: "El monto debe ser mayor a 0.",
+      decimalsMessage: "El monto no puede tener más de 2 decimales.",
+      maxAmountMessage: `El monto no puede ser mayor al saldo pendiente: ${maxAmount}.`,
+      dateRequiredMessage: "La fecha de pago es obligatoria.",
+      futureDateMessage: "La fecha de pago no puede ser futura.",
+      methodRequiredMessage: "Selecciona un método de pago.",
+    });
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
 
     if (saving) return;
 
@@ -126,16 +110,14 @@ function PaymentForm({
       return;
     }
 
-    const paymentToSubmit: PaymentPayload = {
+    await onSubmit({
       id: payment?.id,
       cryptId: finalCryptId,
       amount: Number(formData.amount),
       paymentMethodId: Number(formData.paymentMethodId),
       paymentDate: formData.paymentDate,
       isActive: payment?.isActive ?? true,
-    };
-
-    await onSubmit(paymentToSubmit);
+    });
   };
 
   const visibleError = formError || serverError;
@@ -144,76 +126,19 @@ function PaymentForm({
     <form className="form-container" onSubmit={handleSubmit}>
       {visibleError && <p className="error-message">{visibleError}</p>}
 
-      <div className="form-group">
-        <label htmlFor="amount">Monto</label>
-        <div className="currency-input-wrapper">
-          <span className="currency-symbol">$</span>
-          <input
-            type="number"
-            id="amount"
-            name="amount"
-            value={formData.amount}
-            onChange={handleChange}
-            min="0.01"
-            max={maxAmount ?? undefined}
-            step="0.01"
-            disabled={saving}
-            required
-            placeholder="0.00"
-          />
-        </div>
-        
-        {/* TEXTO DE AYUDA + BOTÓN RÁPIDO */}
-        {maxAmount != null && maxAmount > 0 && (
-          <div className="amount-helper-container">
-            <span className="form-hint">Saldo pendiente: <strong>${maxAmount}</strong></span>
-            <button 
-              type="button" 
-              className="btn-link-action"
-              onClick={() => setFormData(prev => ({ ...prev, amount: maxAmount.toString() }))}
-              disabled={saving}
-            >
-              Pagar todo
-            </button>
-          </div>
-        )}
-      </div>
-
-      {maxAmount != null && (
-        <p className="form-hint">
-          Saldo pendiente: {maxAmount}
-        </p>
-      )}
-
-      <div className="form-group">
-        <label>Fecha de pago</label>
-        <input
-          type="date"
-          name="paymentDate"
-          value={formData.paymentDate}
-          onChange={handleChange}
-          max={getTodayLocalDate()}
-          disabled={saving}
-          required
-        />
-      </div>
-
-      <div className="form-group">
-        <label>Método de pago</label>
-        <select
-          name="paymentMethodId"
-          value={formData.paymentMethodId}
-          onChange={handleChange}
-          disabled={saving}
-          required
-        >
-          {PAYMENT_METHODS.map((paymentMethod) => (
-            <option key={paymentMethod.id} value={paymentMethod.id}>
-              {paymentMethod.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PaymentFields
+        idPrefix="payment"
+        amountLabel="Monto"
+        helperLabel="Saldo pendiente"
+        shortcutLabel="Pagar todo"
+        amount={formData.amount}
+        paymentDate={formData.paymentDate}
+        paymentMethodId={formData.paymentMethodId}
+        maxAmount={maxAmount}
+        disabled={saving}
+        onChange={handleChange}
+        onAmountShortcut={fillMaxAmount}
+      />
 
       <div className="form-actions">
         <button
