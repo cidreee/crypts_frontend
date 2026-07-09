@@ -36,6 +36,18 @@ function getCryptFormData(crypt?: Crypt | null): CryptFormData {
   };
 }
 
+function getCurrencyInputValue(value: string) {
+  const sanitized = value.replace(/[^\d.]/g, "");
+  const [integerPart, ...decimalParts] = sanitized.split(".");
+  const decimals = decimalParts.join("").slice(0, 2);
+
+  if (sanitized.includes(".")) {
+    return `${integerPart}.${decimals}`;
+  }
+
+  return integerPart;
+}
+
 function CryptForm({
   crypt,
   saving = false,
@@ -85,6 +97,15 @@ function CryptForm({
       setFormData((prev) => ({
         ...prev,
         number: onlyNumbers,
+      }));
+
+      return;
+    }
+
+    if (name === "cost") {
+      setFormData((prev) => ({
+        ...prev,
+        cost: getCurrencyInputValue(value),
       }));
 
       return;
@@ -218,17 +239,21 @@ function CryptForm({
       </div>
 
       <div className="form-group">
-        <label>Costo</label>
-        <input
-          type="number"
-          name="cost"
-          value={formData.cost}
-          onChange={handleChange}
-          min="0.01"
-          step="0.01"
-          disabled={saving}
-          required
-        />
+        <label htmlFor="crypt-cost">Costo</label>
+        <div className="currency-input-wrapper">
+          <span className="currency-symbol">$</span>
+          <input
+            type="text"
+            id="crypt-cost"
+            name="cost"
+            value={formData.cost}
+            onChange={handleChange}
+            inputMode="decimal"
+            placeholder="0.00"
+            disabled={saving}
+            required
+          />
+        </div>
       </div>
 
       <div className="form-actions">

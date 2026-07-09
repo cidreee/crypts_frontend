@@ -10,6 +10,7 @@ export interface Client {
   firstName: string;
   lastName: string;
   phoneNumber: string | null;
+  alternatePhoneNumber?: string | null;
   isActive: boolean;
   createdAt?: string;
   balance?: ClientBalance | null;
@@ -17,7 +18,7 @@ export interface Client {
 
 export type ClientPayload = Pick<
   Client,
-  "firstName" | "lastName" | "phoneNumber" | "isActive"
+  "firstName" | "lastName" | "phoneNumber" | "alternatePhoneNumber" | "isActive"
 >;
 
 export type UpdateClientPayload = ClientPayload & {
