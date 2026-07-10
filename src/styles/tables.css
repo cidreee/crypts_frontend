@@ -1,5 +1,21 @@
+.table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #eef2f6;
+  border-radius: 999px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #98a2b3;
+  border-radius: 999px;
+}
+
 .table-container {
-  overflow-x: auto;
+  overflow-x: scroll;
+  scrollbar-gutter: stable;
+  padding-bottom: 0.25rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -8,8 +24,8 @@
 
 .clients-table,
 .data-table {
-  width: 100%;
-  min-width: 760px;
+  width: max-content;
+  min-width: 1500px;
   border-collapse: separate;
   border-spacing: 0;
   background-color: var(--surface);
@@ -52,6 +68,48 @@
 .clients-table tbody tr:last-child td,
 .data-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.table-text-cell {
+  min-width: 150px;
+  max-width: 240px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.data-table .table-sticky-left,
+.data-table .table-sticky-right {
+  position: sticky;
+  background-color: var(--surface);
+}
+
+.data-table .table-sticky-left {
+  left: 0;
+  min-width: 110px;
+  z-index: 2;
+}
+
+.data-table .table-sticky-right {
+  right: 0;
+  min-width: 190px;
+  z-index: 2;
+}
+
+.data-table th.table-sticky-left,
+.data-table th.table-sticky-right {
+  z-index: 4;
+  background-color: var(--surface-muted);
+}
+
+.data-table tbody tr:hover .table-sticky-left,
+.data-table tbody tr:hover .table-sticky-right {
+  background-color: #f9fafb;
+}
+
+.table-empty-value {
+  color: #98a2b3;
+  font-style: italic;
 }
 
 .table-actions {

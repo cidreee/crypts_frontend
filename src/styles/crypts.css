@@ -1,6 +1,6 @@
 .filters-container {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) repeat(2, minmax(180px, 240px));
+  grid-template-columns: minmax(260px, 1fr) repeat(3, minmax(170px, 220px));
   gap: 1rem;
   align-items: end;
   padding: 1rem;
@@ -94,6 +94,45 @@
   margin: 0;
   color: var(--text);
   font-size: 1rem;
+}
+
+.remains-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.remain-item {
+  min-width: 0;
+  padding: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.remain-item span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.remain-item strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.remain-item small {
+  display: block;
+  margin-top: 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 @media (max-width: 900px) {

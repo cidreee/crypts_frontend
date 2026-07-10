@@ -40,6 +40,35 @@ function formatDate(date?: string | null) {
   return new Date(date).toLocaleDateString("es-MX");
 }
 
+function formatClientName(
+  client: Crypt["client"] | Crypt["beneficiary"],
+  fallback = "-"
+) {
+  if (!client) return fallback;
+
+  return `${client.firstName} ${client.lastName}`.trim() || fallback;
+}
+
+function formatNullableText(value?: string | null) {
+  const formattedValue = value?.trim();
+
+  return formattedValue || "-";
+}
+
+function formatCryptRemains(crypt: Crypt) {
+  const remains = crypt.cryptRemains?.filter((remain) => remain.isActive ?? true);
+
+  if (!remains?.length) return "-";
+
+  return remains
+    .map((remain) => formatNullableText(remain.deceasedName))
+    .join(", ");
+}
+
+function EmptyTableValue({ children }: { children: React.ReactNode }) {
+  return <span className="table-empty-value">{children}</span>;
+}
+
 function CryptTable({
   crypts,
   onRegisterSale,
@@ -53,15 +82,19 @@ function CryptTable({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Cripta</th>
+            <th className="table-sticky-left">Cripta</th>
+            <th>Título</th>
             <th>Cliente</th>
+            <th>Beneficiario</th>
+            <th>Restos</th>
+            <th>Placa</th>
             <th>Costo</th>
             <th>Pagado</th>
             <th>Saldo</th>
             <th>Pagos</th>
             <th>Compra</th>
             <th>Estado</th>
-            <th>Acciones</th>
+            <th className="table-sticky-right">Acciones</th>
           </tr>
         </thead>
 
@@ -69,9 +102,11 @@ function CryptTable({
           {crypts.map((crypt) => {
             const cryptCode = `${crypt.section}-${crypt.letter}-${crypt.number}`;
 
-            const clientName = crypt.client
-              ? `${crypt.client.firstName} ${crypt.client.lastName}`
-              : "Sin cliente";
+            const clientName = formatClientName(crypt.client, "Sin cliente");
+            const beneficiaryName = formatClientName(crypt.beneficiary);
+            const cryptTitle = formatNullableText(crypt.title);
+            const cryptRemains = formatCryptRemains(crypt);
+            const plateText = formatNullableText(crypt.plateText);
 
             const totalPaid = crypt.balance?.totalPaid ?? 0;
             const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
@@ -95,8 +130,42 @@ function CryptTable({
 
             return (
               <tr key={crypt.id}>
-                <td>{cryptCode}</td>
-                <td>{clientName}</td>
+                <td className="table-sticky-left">{cryptCode}</td>
+                <td className="table-text-cell">
+                  {cryptTitle === "-" ? (
+                    <EmptyTableValue>-</EmptyTableValue>
+                  ) : (
+                    cryptTitle
+                  )}
+                </td>
+                <td>
+                  {crypt.client ? (
+                    clientName
+                  ) : (
+                    <EmptyTableValue>{clientName}</EmptyTableValue>
+                  )}
+                </td>
+                <td>
+                  {beneficiaryName === "-" ? (
+                    <EmptyTableValue>-</EmptyTableValue>
+                  ) : (
+                    beneficiaryName
+                  )}
+                </td>
+                <td className="table-text-cell">
+                  {cryptRemains === "-" ? (
+                    <EmptyTableValue>-</EmptyTableValue>
+                  ) : (
+                    cryptRemains
+                  )}
+                </td>
+                <td className="table-text-cell">
+                  {plateText === "-" ? (
+                    <EmptyTableValue>-</EmptyTableValue>
+                  ) : (
+                    plateText
+                  )}
+                </td>
                 <td>{formatCurrency(crypt.cost)}</td>
                 <td>{crypt.client ? formatCurrency(totalPaid) : "-"}</td>
                 
@@ -112,7 +181,7 @@ function CryptTable({
                   </span>
                 </td>
 
-                <td>
+                <td className="table-sticky-right">
                   <select
                     className="actions-select"
                     defaultValue=""

@@ -84,7 +84,7 @@ select {
 }
 
 .app-main {
-  width: min(100%, 1280px);
+  width: min(100%, 1600px);
   margin: 0 auto;
   padding: 2rem;
 }

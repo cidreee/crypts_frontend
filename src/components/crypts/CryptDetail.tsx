@@ -48,6 +48,8 @@ function CryptDetail({
   const totalPaid = crypt.balance?.totalPaid ?? 0;
   const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
   const paymentsCount = crypt.balance?.paymentsCount ?? payments.length;
+  const activeRemains =
+    crypt.cryptRemains?.filter((remain) => remain.isActive ?? true) ?? [];
 
   return (
     <div className="crypt-detail">
@@ -113,6 +115,27 @@ function CryptDetail({
           <strong>{crypt.client ? paymentsCount : "-"}</strong>
         </div>
       </div>
+
+      <div className="detail-section-header">
+        <h3>Restos en esta cripta</h3>
+      </div>
+
+      {activeRemains.length === 0 && (
+        <p className="empty-message">No hay restos registrados.</p>
+      )}
+
+      {activeRemains.length > 0 && (
+        <div className="remains-grid">
+          {activeRemains.map((remain, index) => (
+            <div className="remain-item" key={remain.id ?? index}>
+              <span>Nombre</span>
+              <strong>{remain.deceasedName?.trim() || "-"}</strong>
+
+              <small>Registrado: {formatDate(remain.createdAt)}</small>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="detail-section-header">
         <h3>Pagos de esta cripta</h3>

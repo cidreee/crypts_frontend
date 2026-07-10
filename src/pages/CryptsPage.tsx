@@ -17,6 +17,21 @@ import { getApiErrorMessage } from "../utils/apiError";
 import { formatCurrency } from "../utils/format";
 
 type AvailabilityFilter = "all" | "available" | "occupied";
+type PaymentStatusFilter = "all" | "no-payment" | "paying" | "completed";
+
+function getCryptPaymentStatus(
+  crypt: Crypt
+): Exclude<PaymentStatusFilter, "all"> | null {
+  if (crypt.isAvailable) return null;
+  
+  const totalPaid = crypt.balance?.totalPaid ?? 0;
+  const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+
+  if (totalPaid <= 0) return "no-payment";
+  if (balanceDue > 0) return "paying";
+
+  return "completed";
+}
 
 function CryptsPage() {
   const { crypts, loading, error, loadCrypts } = useCrypts();
@@ -47,6 +62,8 @@ function CryptsPage() {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [availabilityFilter, setAvailabilityFilter] =
     useState<AvailabilityFilter>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] =
+    useState<PaymentStatusFilter>("all");
 
   const [savingCrypt, setSavingCrypt] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
@@ -128,9 +145,24 @@ function CryptsPage() {
         (availabilityFilter === "available" && isAvailable) ||
         (availabilityFilter === "occupied" && !isAvailable);
 
-      return matchesSearch && matchesSection && matchesAvailability;
+      const matchesPaymentStatus =
+        paymentStatusFilter === "all" ||
+        getCryptPaymentStatus(crypt) === paymentStatusFilter;
+
+      return (
+        matchesSearch &&
+        matchesSection &&
+        matchesAvailability &&
+        matchesPaymentStatus
+      );
     });
-  }, [validCrypts, searchTerm, sectionFilter, availabilityFilter]);
+  }, [
+    validCrypts,
+    searchTerm,
+    sectionFilter,
+    availabilityFilter,
+    paymentStatusFilter,
+  ]);
 
   const sectionOptions = useMemo(() => {
     return Array.from(new Set(validCrypts.map((crypt) => crypt.section))).sort(
@@ -573,7 +605,7 @@ function CryptsPage() {
         </div>
 
         <div className="form-group">
-          <label>Estado</label>
+          <label>Disponibilidad</label>
           <select
             value={availabilityFilter}
             onChange={(e) =>
@@ -584,6 +616,22 @@ function CryptsPage() {
             <option value="all">Todas</option>
             <option value="available">Disponibles</option>
             <option value="occupied">Ocupadas</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Estado de pago</label>
+          <select
+            value={paymentStatusFilter}
+            onChange={(e) =>
+              setPaymentStatusFilter(e.target.value as PaymentStatusFilter)
+            }
+            disabled={isBusy}
+          >
+            <option value="all">Todos</option>
+            <option value="no-payment">Sin pago</option>
+            <option value="paying">Abonando</option>
+            <option value="completed">Liquidada</option>
           </select>
         </div>
 
@@ -637,6 +685,7 @@ function CryptsPage() {
         title={editingDetailCrypt ? "Editar cripta" : "Detalles de cripta"}
         onClose={handleCloseDetailModal}
         closeDisabled={savingCrypt}
+        size="wide"
       >
         {selectedCryptForDetail &&
           (editingDetailCrypt ? (

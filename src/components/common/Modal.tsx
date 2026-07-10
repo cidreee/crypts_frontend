@@ -6,6 +6,7 @@ type ModalProps = {
   children: ReactNode;
   onClose: () => void;
   closeDisabled?: boolean;
+  size?: "default" | "wide";
 };
 
 function Modal({
@@ -14,6 +15,7 @@ function Modal({
   children,
   onClose,
   closeDisabled = false,
+  size = "default",
 }: ModalProps) {
   if (!isOpen) {
     return null;
@@ -21,7 +23,7 @@ function Modal({
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card">
+      <div className={`modal-card ${size === "wide" ? "modal-card-wide" : ""}`}>
         <div className="modal-header">
           <h2>{title}</h2>
 

@@ -9,6 +9,7 @@ import type {
 import type { Crypt, CryptPayload } from "../types/crypt";
 import type { Payment, PaymentPayload } from "../types/payment";
 import type { ApiResponse } from "../types/apiResponse";
+import type { CryptRemain } from "../types/cryptRemain";
 
 function unwrapApiResponse<T>(apiResponse: ApiResponse<T>): T {
   if (!apiResponse.success) {
@@ -122,6 +123,31 @@ export const apiService = {
 
       return unwrapApiResponse(response.data);
     },
+  },
+
+  // CRYPT REMAINS 
+  cryptRemains: {
+    getAll: async (): Promise<CryptRemain[]> => {
+      const response = await axiosClient.get<ApiResponse<CryptRemain[]>>(
+        "/CryptRemain"
+      );
+      return unwrapApiResponse(response.data);
+    },
+
+    getByCryptId: async (cryptId: number): Promise<CryptRemain[]> => {
+      const response = await axiosClient.get<ApiResponse<CryptRemain[]>>(
+        `/CryptRemain/by-cryptId/${cryptId}`
+      );
+      return unwrapApiResponse(response.data);
+    },
+
+    create: async (cryptRemain: CryptRemain): Promise<CryptRemain> => {
+      const response = await axiosClient.post<ApiResponse<CryptRemain>>(
+        "/CryptRemain",
+        cryptRemain
+      );
+      return unwrapApiResponse(response.data);
+    }
   },
 
   // PAYMENTS
