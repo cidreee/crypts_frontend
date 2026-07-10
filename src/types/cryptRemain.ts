@@ -9,5 +9,4 @@ export interface CryptRemain {
   deletedAt?: string | null;
 
   crypt?: Crypt;
-
 }

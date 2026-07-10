@@ -34,7 +34,10 @@ export type CryptPayload = Pick<
 > & {
   id?: number;
   clientId?: number | null;
+  beneficiaryId?: number | null;
   saleCryptStatusId?: number | null;
+  title?: string | null;
+  plateText?: string | null;
   isAvailable?: boolean | null;
   createdAt?: string;
 };

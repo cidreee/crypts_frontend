@@ -125,12 +125,13 @@ export const apiService = {
     },
   },
 
-  // CRYPT REMAINS 
+  // CRYPT REMAINS
   cryptRemains: {
     getAll: async (): Promise<CryptRemain[]> => {
       const response = await axiosClient.get<ApiResponse<CryptRemain[]>>(
         "/CryptRemain"
       );
+
       return unwrapApiResponse(response.data);
     },
 
@@ -138,6 +139,7 @@ export const apiService = {
       const response = await axiosClient.get<ApiResponse<CryptRemain[]>>(
         `/CryptRemain/by-cryptId/${cryptId}`
       );
+
       return unwrapApiResponse(response.data);
     },
 
@@ -146,8 +148,9 @@ export const apiService = {
         "/CryptRemain",
         cryptRemain
       );
+
       return unwrapApiResponse(response.data);
-    }
+    },
   },
 
   // PAYMENTS

@@ -12,6 +12,14 @@ import { getTodayLocalDate } from "../../utils/date";
 import { validatePaymentValues } from "../../utils/paymentValidation";
 
 type SaleMode = "existing" | "new";
+type BeneficiaryMode = "none" | "existing" | "new";
+
+export type SaleDetails = {
+  beneficiary?: ClientPayload;
+  beneficiaryId?: number | null;
+  title?: string | null;
+  plateText?: string | null;
+};
 
 type SaleFormProps = {
   clients: Client[];
@@ -20,7 +28,8 @@ type SaleFormProps = {
   onSubmit: (
     mode: SaleMode,
     clientData: number | ClientPayload,
-    initialPayment: PaymentPayload
+    initialPayment: PaymentPayload,
+    saleDetails: SaleDetails
   ) => void;
   onCancel: () => void;
 };
@@ -32,6 +41,14 @@ type SaleFormData = {
   lastName: string;
   phoneCountryCode: PhoneCountryCode;
   phoneNumber: string;
+  beneficiaryMode: BeneficiaryMode;
+  beneficiaryId: string;
+  beneficiaryFirstName: string;
+  beneficiaryLastName: string;
+  beneficiaryPhoneCountryCode: PhoneCountryCode;
+  beneficiaryPhoneNumber: string;
+  title: string;
+  plateText: string;
   amount: string;
   paymentMethodId: string;
   paymentDate: string;
@@ -47,10 +64,26 @@ function getInitialFormData(clients: Client[]): SaleFormData {
     lastName: "",
     phoneCountryCode: "+52",
     phoneNumber: "",
+    beneficiaryMode: "none",
+    beneficiaryId: firstClientId,
+    beneficiaryFirstName: "",
+    beneficiaryLastName: "",
+    beneficiaryPhoneCountryCode: "+52",
+    beneficiaryPhoneNumber: "",
+    title: "",
+    plateText: "",
     amount: "",
     paymentMethodId: "1",
     paymentDate: getTodayLocalDate(),
   };
+}
+
+function RequiredMark() {
+  return (
+    <span className="required-mark" title="Obligatorio">
+      *
+    </span>
+  );
 }
 
 function SaleForm({
@@ -72,16 +105,17 @@ function SaleForm({
           ...prev,
           mode: "new",
           clientId: "",
+          beneficiaryMode:
+            prev.beneficiaryMode === "existing" ? "none" : prev.beneficiaryMode,
+          beneficiaryId: "",
         };
-      }
-
-      if (prev.clientId) {
-        return prev;
       }
 
       return {
         ...prev,
-        clientId: clients[0].id?.toString() ?? "",
+        clientId: prev.clientId || clients[0].id?.toString() || "",
+        beneficiaryId:
+          prev.beneficiaryId || clients[0].id?.toString() || "",
       };
     });
   }, [clients]);
@@ -93,10 +127,10 @@ function SaleForm({
 
     setFormError("");
 
-    if (name === "phoneNumber") {
+    if (name === "phoneNumber" || name === "beneficiaryPhoneNumber") {
       setFormData((prev) => ({
         ...prev,
-        phoneNumber: onlyDigits(value),
+        [name]: onlyDigits(value),
       }));
 
       return;
@@ -117,9 +151,25 @@ function SaleForm({
       return;
     }
 
+    if (name === "beneficiaryMode") {
+      const selectedMode = value as BeneficiaryMode;
+
+      setFormData((prev) => ({
+        ...prev,
+        beneficiaryMode: selectedMode,
+        beneficiaryId:
+          selectedMode === "existing" ? clients[0]?.id?.toString() ?? "" : "",
+      }));
+
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "phoneCountryCode" ? (value as PhoneCountryCode) : value,
+      [name]:
+        name === "phoneCountryCode" || name === "beneficiaryPhoneCountryCode"
+          ? (value as PhoneCountryCode)
+          : value,
     }));
   };
 
@@ -134,13 +184,7 @@ function SaleForm({
 
   const validateClientData = () => {
     if (formData.mode === "existing") {
-      const clientId = Number(formData.clientId);
-
-      if (!clientId) {
-        return "Selecciona un cliente.";
-      }
-
-      return "";
+      return Number(formData.clientId) ? "" : "Selecciona un cliente.";
     }
 
     if (!formData.firstName.trim()) {
@@ -154,19 +198,42 @@ function SaleForm({
     return validatePhoneNumber(formData);
   };
 
+  const validateBeneficiaryData = () => {
+    if (formData.beneficiaryMode === "none") return "";
+
+    if (formData.beneficiaryMode === "existing") {
+      return Number(formData.beneficiaryId)
+        ? ""
+        : "Selecciona un beneficiario.";
+    }
+
+    if (!formData.beneficiaryFirstName.trim()) {
+      return "El nombre del beneficiario es obligatorio.";
+    }
+
+    if (!formData.beneficiaryLastName.trim()) {
+      return "El apellido del beneficiario es obligatorio.";
+    }
+
+    return validatePhoneNumber({
+      phoneCountryCode: formData.beneficiaryPhoneCountryCode,
+      phoneNumber: formData.beneficiaryPhoneNumber,
+    });
+  };
+
   const validateInitialPayment = () => {
     return validatePaymentValues(formData, {
       maxAmount: maxInitialPayment,
       amountRequiredMessage: "Ingresa el monto del pago inicial.",
       invalidAmountMessage:
-        "El monto del pago inicial debe ser un número válido.",
+        "El monto del pago inicial debe ser un numero valido.",
       positiveAmountMessage: "El monto del pago inicial debe ser mayor a 0.",
       decimalsMessage:
-        "El monto del pago inicial no puede tener más de 2 decimales.",
+        "El monto del pago inicial no puede tener mas de 2 decimales.",
       maxAmountMessage: "El pago inicial no puede ser mayor al costo de la cripta.",
       dateRequiredMessage: "Selecciona la fecha del pago inicial.",
       futureDateMessage: "La fecha del pago inicial no puede ser futura.",
-      methodRequiredMessage: "Selecciona el método de pago.",
+      methodRequiredMessage: "Selecciona el metodo de pago.",
     });
   };
 
@@ -177,6 +244,32 @@ function SaleForm({
       paymentMethodId: Number(formData.paymentMethodId),
       paymentDate: formData.paymentDate,
       isActive: true,
+    };
+  };
+
+  const buildSaleDetails = (): SaleDetails => {
+    const title = formData.title.trim();
+    const plateText = formData.plateText.trim();
+
+    return {
+      beneficiaryId:
+        formData.beneficiaryMode === "existing"
+          ? Number(formData.beneficiaryId)
+          : null,
+      beneficiary:
+        formData.beneficiaryMode === "new"
+          ? {
+              firstName: formData.beneficiaryFirstName.trim(),
+              lastName: formData.beneficiaryLastName.trim(),
+              phoneNumber: buildPhoneNumber({
+                phoneCountryCode: formData.beneficiaryPhoneCountryCode,
+                phoneNumber: formData.beneficiaryPhoneNumber,
+              }),
+              isActive: true,
+            }
+          : undefined,
+      title: title || null,
+      plateText: plateText || null,
     };
   };
 
@@ -192,6 +285,13 @@ function SaleForm({
       return;
     }
 
+    const beneficiaryValidationMessage = validateBeneficiaryData();
+
+    if (beneficiaryValidationMessage) {
+      setFormError(beneficiaryValidationMessage);
+      return;
+    }
+
     const paymentValidationMessage = validateInitialPayment();
 
     if (paymentValidationMessage) {
@@ -200,9 +300,10 @@ function SaleForm({
     }
 
     const initialPayment = buildInitialPayment();
+    const saleDetails = buildSaleDetails();
 
     if (formData.mode === "existing") {
-      onSubmit("existing", Number(formData.clientId), initialPayment);
+      onSubmit("existing", Number(formData.clientId), initialPayment, saleDetails);
       return;
     }
 
@@ -214,7 +315,8 @@ function SaleForm({
         phoneNumber: buildPhoneNumber(formData),
         isActive: true,
       },
-      initialPayment
+      initialPayment,
+      saleDetails
     );
   };
 
@@ -222,103 +324,253 @@ function SaleForm({
     <form className="form-container" onSubmit={handleSubmit}>
       {formError && <p className="error-message">{formError}</p>}
 
-      <div className="form-group form-group-full">
-        <label htmlFor="sale-client-mode">Tipo de cliente</label>
+      <fieldset className="form-section">
+        <legend>Cliente</legend>
 
-        <select
-          id="sale-client-mode"
-          name="mode"
-          value={formData.mode}
-          onChange={handleChange}
-          disabled={saving}
-        >
-          {clients.length > 0 && (
-            <option value="existing">Cliente existente</option>
-          )}
-
-          <option value="new">Cliente nuevo</option>
-        </select>
-      </div>
-
-      {formData.mode === "existing" && (
         <div className="form-group form-group-full">
-          <label htmlFor="sale-client-id">Cliente</label>
+          <label htmlFor="sale-client-mode">
+            Tipo de cliente <RequiredMark />
+          </label>
 
           <select
-            id="sale-client-id"
-            name="clientId"
-            value={formData.clientId}
+            id="sale-client-mode"
+            name="mode"
+            value={formData.mode}
             onChange={handleChange}
             disabled={saving}
-            required
           >
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.firstName} {client.lastName}
-                {client.phoneNumber ? ` - ${client.phoneNumber}` : ""}
-              </option>
-            ))}
+            {clients.length > 0 && (
+              <option value="existing">Cliente existente</option>
+            )}
+            <option value="new">Cliente nuevo</option>
           </select>
         </div>
-      )}
 
-      {formData.mode === "new" && (
-        <>
-          <div className="form-group">
-            <label htmlFor="sale-first-name">Nombre</label>
-            <input
-              type="text"
-              id="sale-first-name"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              disabled={saving}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="sale-last-name">Apellido</label>
-            <input
-              type="text"
-              id="sale-last-name"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              disabled={saving}
-              required
-            />
-          </div>
-
+        {formData.mode === "existing" && (
           <div className="form-group form-group-full">
-            <label htmlFor="sale-phone-number">Celular</label>
+            <label htmlFor="sale-client-id">
+              Cliente <RequiredMark />
+            </label>
 
-            <div className="phone-input-group">
-              <select
-                name="phoneCountryCode"
-                value={formData.phoneCountryCode}
-                onChange={handleChange}
-                disabled={saving}
-                aria-label="Código de país"
-              >
-                <option value="+52">+52 México</option>
-                <option value="+1">+1 USA/Canadá</option>
-              </select>
+            <select
+              id="sale-client-id"
+              name="clientId"
+              value={formData.clientId}
+              onChange={handleChange}
+              disabled={saving}
+              required
+            >
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.firstName} {client.lastName}
+                  {client.phoneNumber ? ` - ${client.phoneNumber}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
+        {formData.mode === "new" && (
+          <>
+            <div className="form-group">
+              <label htmlFor="sale-first-name">
+                Nombre <RequiredMark />
+              </label>
               <input
-                type="tel"
-                id="sale-phone-number"
-                name="phoneNumber"
-                value={formData.phoneNumber}
+                type="text"
+                id="sale-first-name"
+                name="firstName"
+                value={formData.firstName}
                 onChange={handleChange}
                 disabled={saving}
-                placeholder="4491234567"
-                maxLength={10}
+                required
               />
             </div>
+
+            <div className="form-group">
+              <label htmlFor="sale-last-name">
+                Apellido <RequiredMark />
+              </label>
+              <input
+                type="text"
+                id="sale-last-name"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                disabled={saving}
+                required
+              />
+            </div>
+
+            <div className="form-group form-group-full">
+              <label htmlFor="sale-phone-number">Celular</label>
+
+              <div className="phone-input-group">
+                <select
+                  name="phoneCountryCode"
+                  value={formData.phoneCountryCode}
+                  onChange={handleChange}
+                  disabled={saving}
+                  aria-label="Codigo de pais"
+                >
+                  <option value="+52">+52 Mexico</option>
+                  <option value="+1">+1 USA/Canada</option>
+                </select>
+
+                <input
+                  type="tel"
+                  id="sale-phone-number"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                  disabled={saving}
+                  placeholder="4491234567"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </fieldset>
+
+      <fieldset className="form-section">
+        <legend>Beneficiario</legend>
+
+        <div className="form-group form-group-full">
+          <label htmlFor="sale-beneficiary-mode">Tipo de beneficiario</label>
+          <select
+            id="sale-beneficiary-mode"
+            name="beneficiaryMode"
+            value={formData.beneficiaryMode}
+            onChange={handleChange}
+            disabled={saving}
+          >
+            <option value="none">Sin beneficiario</option>
+            {clients.length > 0 && (
+              <option value="existing">Beneficiario existente</option>
+            )}
+            <option value="new">Beneficiario nuevo</option>
+          </select>
+        </div>
+
+        {formData.beneficiaryMode === "existing" && (
+          <div className="form-group form-group-full">
+            <label htmlFor="sale-beneficiary-id">
+              Beneficiario <RequiredMark />
+            </label>
+
+            <select
+              id="sale-beneficiary-id"
+              name="beneficiaryId"
+              value={formData.beneficiaryId}
+              onChange={handleChange}
+              disabled={saving}
+              required
+            >
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.firstName} {client.lastName}
+                  {client.phoneNumber ? ` - ${client.phoneNumber}` : ""}
+                </option>
+              ))}
+            </select>
           </div>
-        </>
-      )}
+        )}
+
+        {formData.beneficiaryMode === "new" && (
+          <>
+            <div className="form-group">
+              <label htmlFor="sale-beneficiary-first-name">
+                Nombre <RequiredMark />
+              </label>
+              <input
+                type="text"
+                id="sale-beneficiary-first-name"
+                name="beneficiaryFirstName"
+                value={formData.beneficiaryFirstName}
+                onChange={handleChange}
+                disabled={saving}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="sale-beneficiary-last-name">
+                Apellido <RequiredMark />
+              </label>
+              <input
+                type="text"
+                id="sale-beneficiary-last-name"
+                name="beneficiaryLastName"
+                value={formData.beneficiaryLastName}
+                onChange={handleChange}
+                disabled={saving}
+                required
+              />
+            </div>
+
+            <div className="form-group form-group-full">
+              <label htmlFor="sale-beneficiary-phone-number">Celular</label>
+
+              <div className="phone-input-group">
+                <select
+                  name="beneficiaryPhoneCountryCode"
+                  value={formData.beneficiaryPhoneCountryCode}
+                  onChange={handleChange}
+                  disabled={saving}
+                  aria-label="Codigo de pais del beneficiario"
+                >
+                  <option value="+52">+52 Mexico</option>
+                  <option value="+1">+1 USA/Canada</option>
+                </select>
+
+                <input
+                  type="tel"
+                  id="sale-beneficiary-phone-number"
+                  name="beneficiaryPhoneNumber"
+                  value={formData.beneficiaryPhoneNumber}
+                  onChange={handleChange}
+                  disabled={saving}
+                  placeholder="4491234567"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </fieldset>
+
+      <fieldset className="form-section">
+        <legend>Datos de la cripta</legend>
+
+        <div className="form-group">
+          <label htmlFor="sale-title">Numero de titulo</label>
+          <input
+            type="text"
+            id="sale-title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            disabled={saving}
+            placeholder="Sin titulo entregado"
+            maxLength={120}
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="sale-plate-text">Texto de placa</label>
+          <input
+            type="text"
+            id="sale-plate-text"
+            name="plateText"
+            value={formData.plateText}
+            onChange={handleChange}
+            disabled={saving}
+            placeholder="Nombre para la placa"
+            maxLength={180}
+          />
+        </div>
+      </fieldset>
 
       <PaymentFields
         idPrefix="sale"

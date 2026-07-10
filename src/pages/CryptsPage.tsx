@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCrypts } from "../hooks/useCrypts";
 import { apiService } from "../services/apiService";
 import type { Crypt, CryptPayload } from "../types/crypt";
+import type { CryptRemain } from "../types/cryptRemain";
 import type { Payment, PaymentPayload } from "../types/payment";
 import type { Client, ClientPayload } from "../types/client";
 import CryptTable from "../components/crypts/CryptTable";
-import CryptForm from "../components/crypts/CryptForm";
 import CryptDetail from "../components/crypts/CryptDetail";
-import SaleForm from "../components/crypts/SaleForm";
+import SaleForm, { type SaleDetails } from "../components/crypts/SaleForm";
 import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
 import ConfirmModal from "../components/common/ConfirmModal";
@@ -38,13 +38,19 @@ function CryptsPage() {
 
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
+  const [cryptRemains, setCryptRemains] = useState<CryptRemain[]>([]);
 
   const [selectedCryptForDetail, setSelectedCryptForDetail] =
     useState<Crypt | null>(null);
   const [editingDetailCrypt, setEditingDetailCrypt] = useState(false);
+  const [pendingCryptUpdate, setPendingCryptUpdate] =
+    useState<CryptPayload | null>(null);
   const [detailPayments, setDetailPayments] = useState<Payment[]>([]);
   const [detailPaymentsLoading, setDetailPaymentsLoading] = useState(false);
   const [detailPaymentsError, setDetailPaymentsError] = useState("");
+  const [detailRemains, setDetailRemains] = useState<CryptRemain[]>([]);
+  const [detailRemainsLoading, setDetailRemainsLoading] = useState(false);
+  const [detailRemainsError, setDetailRemainsError] = useState("");
   const [purchaseDateByCryptId, setPurchaseDateByCryptId] = useState<
     Record<number, string>
   >({});
@@ -54,6 +60,14 @@ function CryptsPage() {
 
   const [selectedCryptForPayment, setSelectedCryptForPayment] =
     useState<Crypt | null>(null);
+
+  const [selectedCryptForRemain, setSelectedCryptForRemain] =
+    useState<Crypt | null>(null);
+  const [remainName, setRemainName] = useState("");
+  const [remainFormError, setRemainFormError] = useState("");
+  const [remainModalError, setRemainModalError] = useState("");
+  const [confirmingRemainCreation, setConfirmingRemainCreation] =
+    useState(false);
 
   const [cryptToCancelPurchase, setCryptToCancelPurchase] =
     useState<Crypt | null>(null);
@@ -68,6 +82,7 @@ function CryptsPage() {
   const [savingCrypt, setSavingCrypt] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [savingRemain, setSavingRemain] = useState(false);
   const [cancelingPurchase, setCancelingPurchase] = useState(false);
 
   const [pageMessage, setPageMessage] = useState("");
@@ -75,13 +90,27 @@ function CryptsPage() {
   const [paymentModalError, setPaymentModalError] = useState("");
 
   const isBusy =
-    savingCrypt || savingSale || savingPayment || cancelingPurchase;
+    savingCrypt ||
+    savingSale ||
+    savingPayment ||
+    savingRemain ||
+    cancelingPurchase;
 
   const validCrypts = useMemo(() => {
     return crypts.filter(
       (crypt): crypt is Crypt => crypt !== null && crypt !== undefined
     );
   }, [crypts]);
+
+  const activeRemainsCountByCryptId = useMemo(() => {
+    return cryptRemains.reduce<Record<number, number>>((counts, remain) => {
+      if (!remain.cryptId || remain.isActive === false) return counts;
+
+      counts[remain.cryptId] = (counts[remain.cryptId] ?? 0) + 1;
+
+      return counts;
+    }, {});
+  }, [cryptRemains]);
 
   const loadClients = useCallback(async () => {
     try {
@@ -108,9 +137,27 @@ function CryptsPage() {
     }
   }, []);
 
+  const loadCryptRemains = useCallback(async () => {
+    try {
+      const remains = await apiService.cryptRemains.getAll();
+
+      setCryptRemains(Array.isArray(remains) ? remains : []);
+    } catch (err) {
+      console.error("Error loading crypt remains:", err);
+      setPageError(
+        getApiErrorMessage(err, "No se pudieron cargar los restos de criptas.")
+      );
+      setCryptRemains([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadClients();
   }, [loadClients]);
+
+  useEffect(() => {
+    loadCryptRemains();
+  }, [loadCryptRemains]);
 
   const filteredCrypts = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -220,6 +267,21 @@ function CryptsPage() {
       .map((payment) => payment.paymentDate)
       .sort()[0];
   };
+
+  const getActiveRemains = (remains: CryptRemain[]) => {
+    return remains.filter((remain) => remain.isActive ?? true);
+  };
+
+  const refreshDetailRemains = useCallback(async (cryptId: number) => {
+    const remains = await apiService.cryptRemains.getByCryptId(cryptId);
+    const safeRemains = Array.isArray(remains) ? remains : [];
+
+    if (selectedCryptForDetail?.id === cryptId) {
+      setDetailRemains(safeRemains);
+    }
+
+    return safeRemains;
+  }, [selectedCryptForDetail?.id]);
 
   useEffect(() => {
     const cryptsToLoad = filteredCrypts.filter((crypt) => {
@@ -337,6 +399,50 @@ function CryptsPage() {
     };
   }, [selectedCryptForDetail]);
 
+  useEffect(() => {
+    if (!selectedCryptForDetail?.id) {
+      setDetailRemains([]);
+      setDetailRemainsError("");
+      return;
+    }
+
+    let isCurrent = true;
+
+    const loadDetailRemains = async () => {
+      try {
+        setDetailRemainsLoading(true);
+        setDetailRemainsError("");
+
+        const remains = await refreshDetailRemains(
+          selectedCryptForDetail.id as number
+        );
+
+        if (!isCurrent) return;
+
+        setDetailRemains(remains);
+      } catch (err) {
+        console.error("Error loading crypt remains:", err);
+
+        if (isCurrent) {
+          setDetailRemains([]);
+          setDetailRemainsError(
+            getApiErrorMessage(err, "No se pudieron cargar los restos.")
+          );
+        }
+      } finally {
+        if (isCurrent) {
+          setDetailRemainsLoading(false);
+        }
+      }
+    };
+
+    loadDetailRemains();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedCryptForDetail, refreshDetailRemains]);
+
   const handleViewCryptDetails = (crypt: Crypt) => {
     clearPageMessages();
     setEditingDetailCrypt(false);
@@ -359,6 +465,7 @@ function CryptsPage() {
         prev?.id === crypt.id ? { ...prev, ...crypt } : prev
       );
       setEditingDetailCrypt(false);
+      setPendingCryptUpdate(null);
     } catch (err) {
       console.error("Error updating crypt:", err);
       setPageError(getApiErrorMessage(err, "No se pudo actualizar la cripta."));
@@ -386,7 +493,8 @@ function CryptsPage() {
   const handleCreateSale = async (
     mode: "existing" | "new",
     clientData: number | ClientPayload,
-    initialPayment?: PaymentPayload
+    initialPayment?: PaymentPayload,
+    saleDetails?: SaleDetails
   ) => {
     if (!selectedCryptForSale?.id || savingSale) return;
 
@@ -413,10 +521,41 @@ function CryptsPage() {
         return;
       }
 
+      let beneficiaryId: number | null = saleDetails?.beneficiaryId ?? null;
+
+      if (saleDetails?.beneficiary) {
+        const createdBeneficiary = await apiService.clients.create(
+          saleDetails.beneficiary
+        );
+
+        beneficiaryId = createdBeneficiary.id ?? null;
+      }
+
       const assignedCrypt = await apiService.crypts.assignOwner(
         selectedCryptForSale.id,
         clientId
       );
+
+      if (
+        beneficiaryId ||
+        saleDetails?.title?.trim() ||
+        saleDetails?.plateText?.trim()
+      ) {
+        await apiService.crypts.update(assignedCrypt.id ?? selectedCryptForSale.id, {
+          id: assignedCrypt.id ?? selectedCryptForSale.id,
+          clientId: assignedCrypt.clientId ?? clientId,
+          beneficiaryId,
+          saleCryptStatusId: assignedCrypt.saleCryptStatusId ?? null,
+          isAvailable: assignedCrypt.isAvailable ?? false,
+          createdAt: assignedCrypt.createdAt,
+          section: assignedCrypt.section,
+          letter: assignedCrypt.letter,
+          number: assignedCrypt.number,
+          cost: assignedCrypt.cost,
+          title: saleDetails?.title?.trim() || null,
+          plateText: saleDetails?.plateText?.trim() || null,
+        });
+      }
 
       if (initialPayment) {
         await apiService.payments.create({
@@ -462,6 +601,65 @@ function CryptsPage() {
     setSelectedCryptForPayment(crypt);
   };
 
+  const handleRequestUpdateCryptDetails = (
+    details: Pick<CryptPayload, "beneficiaryId" | "title" | "plateText">
+  ) => {
+    if (!selectedCryptForDetail?.id) return;
+
+    setPendingCryptUpdate({
+      id: selectedCryptForDetail.id,
+      clientId:
+        selectedCryptForDetail.clientId ?? selectedCryptForDetail.client?.id ?? null,
+      beneficiaryId: details.beneficiaryId ?? null,
+      saleCryptStatusId: selectedCryptForDetail.saleCryptStatusId ?? null,
+      isAvailable: selectedCryptForDetail.isAvailable ?? true,
+      createdAt: selectedCryptForDetail.createdAt,
+      section: selectedCryptForDetail.section,
+      letter: selectedCryptForDetail.letter,
+      number: selectedCryptForDetail.number,
+      cost: selectedCryptForDetail.cost,
+      title: details.title ?? null,
+      plateText: details.plateText ?? null,
+    });
+  };
+
+  const handleAddRemain = async (crypt: Crypt) => {
+    clearPageMessages();
+    setRemainFormError("");
+    setRemainModalError("");
+
+    if (!crypt.id) {
+      setPageError("La cripta seleccionada no es válida.");
+      return;
+    }
+
+    if (crypt.isAvailable || !getCryptClientId(crypt)) {
+      setPageError("Solo se pueden agregar restos a una cripta con dueño.");
+      return;
+    }
+
+    try {
+      setSavingRemain(true);
+
+      const activeRemainsCount = activeRemainsCountByCryptId[crypt.id] ?? 0;
+
+      if (activeRemainsCount >= 4) {
+        setPageError("Esta cripta ya tiene el máximo de 4 restos activos.");
+        return;
+      }
+
+      setSelectedCryptForRemain(crypt);
+      setRemainName("");
+    } catch (err) {
+      console.error("Error validating crypt remains:", err);
+      setPageError(
+        getApiErrorMessage(err, "No se pudieron validar los restos de la cripta.")
+      );
+    } finally {
+      setSavingRemain(false);
+    }
+  };
+
   const handleCreatePayment = async (
     payment: PaymentPayload
   ): Promise<void> => {
@@ -489,6 +687,83 @@ function CryptsPage() {
       setPaymentModalError(message);
     } finally {
       setSavingPayment(false);
+    }
+  };
+
+  const handleSubmitRemain = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (savingRemain) return;
+
+    const normalizedName = remainName.trim();
+
+    if (!normalizedName) {
+      setRemainFormError("El nombre del resto es obligatorio.");
+      return;
+    }
+
+    setRemainFormError("");
+    setConfirmingRemainCreation(true);
+  };
+
+  const handleConfirmCreateRemain = async () => {
+    if (!selectedCryptForRemain?.id || savingRemain) return;
+
+    const normalizedName = remainName.trim();
+
+    if (!normalizedName) {
+      setConfirmingRemainCreation(false);
+      setRemainFormError("El nombre del resto es obligatorio.");
+      return;
+    }
+
+    if (
+      selectedCryptForRemain.isAvailable ||
+      !getCryptClientId(selectedCryptForRemain)
+    ) {
+      setConfirmingRemainCreation(false);
+      setRemainModalError("Solo se pueden agregar restos a una cripta con dueño.");
+      return;
+    }
+
+    try {
+      setSavingRemain(true);
+      setRemainModalError("");
+
+      const remains = await apiService.cryptRemains.getByCryptId(
+        selectedCryptForRemain.id
+      );
+      const activeRemains = getActiveRemains(Array.isArray(remains) ? remains : []);
+
+      if (activeRemains.length >= 4) {
+        setConfirmingRemainCreation(false);
+        setRemainModalError("Esta cripta ya tiene el máximo de 4 restos activos.");
+        return;
+      }
+
+      await apiService.cryptRemains.create({
+        cryptId: selectedCryptForRemain.id,
+        deceasedName: normalizedName,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      });
+
+      await refreshDetailRemains(selectedCryptForRemain.id);
+      await loadCryptRemains();
+      await loadCrypts();
+
+      setSelectedCryptForRemain(null);
+      setRemainName("");
+      setConfirmingRemainCreation(false);
+      setPageMessage("Resto agregado correctamente.");
+    } catch (err) {
+      console.error("Error creating crypt remain:", err);
+      setConfirmingRemainCreation(false);
+      setRemainModalError(
+        getApiErrorMessage(err, "No se pudo agregar el resto.")
+      );
+    } finally {
+      setSavingRemain(false);
     }
   };
 
@@ -531,8 +806,11 @@ function CryptsPage() {
 
     setSelectedCryptForDetail(null);
     setEditingDetailCrypt(false);
+    setPendingCryptUpdate(null);
     setDetailPayments([]);
     setDetailPaymentsError("");
+    setDetailRemains([]);
+    setDetailRemainsError("");
   };
 
   const handleCloseSaleModal = () => {
@@ -545,6 +823,16 @@ function CryptsPage() {
 
     setPaymentModalError("");
     setSelectedCryptForPayment(null);
+  };
+
+  const handleCloseRemainModal = () => {
+    if (savingRemain) return;
+
+    setSelectedCryptForRemain(null);
+    setRemainName("");
+    setRemainFormError("");
+    setRemainModalError("");
+    setConfirmingRemainCreation(false);
   };
 
   return (
@@ -670,45 +958,50 @@ function CryptsPage() {
       {!loading && filteredCrypts.length > 0 && (
         <CryptTable
           crypts={filteredCrypts}
+          activeRemainsCountByCryptId={activeRemainsCountByCryptId}
           getPurchaseDate={(crypt) =>
             crypt.id ? purchaseDateByCryptId[crypt.id] : undefined
           }
           onViewDetails={handleViewCryptDetails}
           onRegisterSale={handleRegisterSale}
           onRegisterPayment={handleRegisterPayment}
+          onAddRemain={handleAddRemain}
           onCancelPurchase={handleCancelPurchase}
         />
       )}
 
       <Modal
         isOpen={selectedCryptForDetail !== null}
-        title={editingDetailCrypt ? "Editar cripta" : "Detalles de cripta"}
+        title="Detalles de cripta"
         onClose={handleCloseDetailModal}
         closeDisabled={savingCrypt}
         size="wide"
       >
-        {selectedCryptForDetail &&
-          (editingDetailCrypt ? (
-            <CryptForm
-              crypt={selectedCryptForDetail}
-              saving={savingCrypt}
-              onSubmit={handleUpdateCrypt}
-              onCancel={() => setEditingDetailCrypt(false)}
-            />
-          ) : (
-            <CryptDetail
-              crypt={selectedCryptForDetail}
-              payments={detailPayments}
-              loadingPayments={detailPaymentsLoading}
-              paymentsError={detailPaymentsError}
-              purchaseDate={
-                selectedCryptForDetail.id
-                  ? purchaseDateByCryptId[selectedCryptForDetail.id]
-                  : undefined
-              }
-              onEdit={() => setEditingDetailCrypt(true)}
-            />
-          ))}
+        {selectedCryptForDetail && (
+          <CryptDetail
+            crypt={selectedCryptForDetail}
+            clients={clients.filter((client) => client.isActive)}
+            payments={detailPayments}
+            remains={detailRemains}
+            editing={editingDetailCrypt}
+            saving={savingCrypt}
+            loadingPayments={detailPaymentsLoading}
+            paymentsError={detailPaymentsError}
+            loadingRemains={detailRemainsLoading}
+            remainsError={detailRemainsError}
+            purchaseDate={
+              selectedCryptForDetail.id
+                ? purchaseDateByCryptId[selectedCryptForDetail.id]
+                : undefined
+            }
+            onEdit={() => setEditingDetailCrypt(true)}
+            onCancelEdit={() => {
+              setEditingDetailCrypt(false);
+              setPendingCryptUpdate(null);
+            }}
+            onSaveEdit={handleRequestUpdateCryptDetails}
+          />
+        )}
       </Modal>
 
       <Modal
@@ -754,16 +1047,108 @@ function CryptsPage() {
         )}
       </Modal>
 
+      <Modal
+        isOpen={selectedCryptForRemain !== null}
+        title="Agregar resto"
+        onClose={handleCloseRemainModal}
+        closeDisabled={savingRemain}
+      >
+        {selectedCryptForRemain && (
+          <form className="form-container" onSubmit={handleSubmitRemain}>
+            {remainModalError && (
+              <p className="error-message">{remainModalError}</p>
+            )}
+            {remainFormError && <p className="error-message">{remainFormError}</p>}
+
+            <div className="payment-amount-summary">
+              <div>
+                <span>Cripta</span>
+                <strong>
+                  {selectedCryptForRemain.section}-
+                  {selectedCryptForRemain.letter}-
+                  {selectedCryptForRemain.number}
+                </strong>
+              </div>
+            </div>
+
+            <div className="form-group form-group-full">
+              <label htmlFor="remain-name">Nombre del resto</label>
+              <input
+                id="remain-name"
+                type="text"
+                value={remainName}
+                onChange={(e) => {
+                  setRemainName(e.target.value);
+                  setRemainFormError("");
+                }}
+                placeholder="Ingresa el nombre"
+                disabled={savingRemain}
+                maxLength={180}
+                required
+              />
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleCloseRemainModal}
+                disabled={savingRemain}
+              >
+                Cancelar
+              </button>
+
+              <button type="submit" className="btn-primary" disabled={savingRemain}>
+                Agregar resto
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       <ConfirmModal
         isOpen={cryptToCancelPurchase !== null}
         title="Cancelar compra"
         message="Los pagos quedarán inactivos y la cripta volverá a estar disponible."
         confirmLabel="Cancelar compra"
+        confirmClassName="btn-danger"
         confirming={cancelingPurchase}
         onConfirm={handleConfirmCancelPurchase}
         onCancel={() => {
           if (!cancelingPurchase) {
             setCryptToCancelPurchase(null);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={confirmingRemainCreation}
+        title="Confirmar resto"
+        message="¿Seguro que quieres agregar este resto a la cripta?"
+        confirmLabel="Agregar resto"
+        confirming={savingRemain}
+        onConfirm={handleConfirmCreateRemain}
+        onCancel={() => {
+          if (!savingRemain) {
+            setConfirmingRemainCreation(false);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={pendingCryptUpdate !== null}
+        title="Editar cripta"
+        message="¿Seguro que quieres editar esta cripta?"
+        confirmLabel="Guardar cambios"
+        confirming={savingCrypt}
+        onConfirm={() => {
+          if (pendingCryptUpdate) {
+            handleUpdateCrypt(pendingCryptUpdate);
+          }
+        }}
+        onCancel={() => {
+          if (!savingCrypt) {
+            setPendingCryptUpdate(null);
           }
         }}
       />

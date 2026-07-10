@@ -6,7 +6,9 @@ type CryptTableProps = {
   onRegisterSale: (crypt: Crypt) => void;
   onRegisterPayment: (crypt: Crypt) => void;
   onCancelPurchase: (crypt: Crypt) => void;
+  onAddRemain: (crypt: Crypt) => void;
   onViewDetails: (crypt: Crypt) => void;
+  activeRemainsCountByCryptId?: Record<number, number>;
   getPurchaseDate?: (crypt: Crypt) => string | undefined;
 };
 
@@ -55,16 +57,6 @@ function formatNullableText(value?: string | null) {
   return formattedValue || "-";
 }
 
-function formatCryptRemains(crypt: Crypt) {
-  const remains = crypt.cryptRemains?.filter((remain) => remain.isActive ?? true);
-
-  if (!remains?.length) return "-";
-
-  return remains
-    .map((remain) => formatNullableText(remain.deceasedName))
-    .join(", ");
-}
-
 function EmptyTableValue({ children }: { children: React.ReactNode }) {
   return <span className="table-empty-value">{children}</span>;
 }
@@ -74,7 +66,9 @@ function CryptTable({
   onRegisterSale,
   onRegisterPayment,
   onCancelPurchase,
+  onAddRemain,
   onViewDetails,
+  activeRemainsCountByCryptId = {},
   getPurchaseDate,
 }: CryptTableProps) {
   return (
@@ -105,7 +99,10 @@ function CryptTable({
             const clientName = formatClientName(crypt.client, "Sin cliente");
             const beneficiaryName = formatClientName(crypt.beneficiary);
             const cryptTitle = formatNullableText(crypt.title);
-            const cryptRemains = formatCryptRemains(crypt);
+            const activeRemainsCount = crypt.id
+              ? activeRemainsCountByCryptId[crypt.id] ?? 0
+              : 0;
+            const hasReachedRemainsLimit = activeRemainsCount >= 4;
             const plateText = formatNullableText(crypt.plateText);
 
             const totalPaid = crypt.balance?.totalPaid ?? 0;
@@ -123,6 +120,7 @@ function CryptTable({
               if (action === "details") onViewDetails(crypt);
               if (action === "sale") onRegisterSale(crypt);
               if (action === "payment") onRegisterPayment(crypt);
+              if (action === "remain") onAddRemain(crypt);
               if (action === "cancel") onCancelPurchase(crypt);
 
               e.target.value = "";
@@ -133,7 +131,7 @@ function CryptTable({
                 <td className="table-sticky-left">{cryptCode}</td>
                 <td className="table-text-cell">
                   {cryptTitle === "-" ? (
-                    <EmptyTableValue>-</EmptyTableValue>
+                    <EmptyTableValue>No entregado</EmptyTableValue>
                   ) : (
                     cryptTitle
                   )}
@@ -147,21 +145,24 @@ function CryptTable({
                 </td>
                 <td>
                   {beneficiaryName === "-" ? (
-                    <EmptyTableValue>-</EmptyTableValue>
+                    <EmptyTableValue>Sin beneficiario</EmptyTableValue>
                   ) : (
                     beneficiaryName
                   )}
                 </td>
-                <td className="table-text-cell">
-                  {cryptRemains === "-" ? (
-                    <EmptyTableValue>-</EmptyTableValue>
-                  ) : (
-                    cryptRemains
-                  )}
+                <td>
+                  <span
+                    className={`remains-count ${
+                      hasReachedRemainsLimit ? "remains-count-full" : ""
+                    }`}
+                  >
+                    <span>{activeRemainsCount}/4</span>
+                    <i style={{ width: `${(activeRemainsCount / 4) * 100}%` }} />
+                  </span>
                 </td>
                 <td className="table-text-cell">
                   {plateText === "-" ? (
-                    <EmptyTableValue>-</EmptyTableValue>
+                    <EmptyTableValue>No definida</EmptyTableValue>
                   ) : (
                     plateText
                   )}
@@ -199,6 +200,9 @@ function CryptTable({
                       <>
                         <option value="payment" disabled={isPaid}>
                           Registrar pago
+                        </option>
+                        <option value="remain" disabled={hasReachedRemainsLimit}>
+                          Agregar resto
                         </option>
                         <option value="cancel">Cancelar compra</option>
                       </>

@@ -17,6 +17,14 @@ type PaymentFieldsProps = {
   onAmountShortcut?: () => void;
 };
 
+function RequiredMark() {
+  return (
+    <span className="required-mark" title="Obligatorio">
+      *
+    </span>
+  );
+}
+
 function PaymentFields({
   amount,
   paymentMethodId,
@@ -58,7 +66,9 @@ function PaymentFields({
       )}
 
       <div className="form-group">
-        <label htmlFor={amountId}>{amountLabel}</label>
+        <label htmlFor={amountId}>
+          {amountLabel} <RequiredMark />
+        </label>
 
         <div className="currency-input-wrapper">
           <span className="currency-symbol">$</span>
@@ -79,7 +89,9 @@ function PaymentFields({
       </div>
 
       <div className="form-group">
-        <label htmlFor={paymentDateId}>Fecha de pago</label>
+        <label htmlFor={paymentDateId}>
+          Fecha de pago <RequiredMark />
+        </label>
         <input
           type="date"
           id={paymentDateId}
@@ -93,7 +105,9 @@ function PaymentFields({
       </div>
 
       <div className="form-group">
-        <label htmlFor={paymentMethodIdId}>Método de pago</label>
+        <label htmlFor={paymentMethodIdId}>
+          Metodo de pago <RequiredMark />
+        </label>
         <select
           id={paymentMethodIdId}
           name="paymentMethodId"
