@@ -4,6 +4,7 @@ import type { Crypt, CryptPayload } from "../../types/crypt";
 import type { CryptRemain } from "../../types/cryptRemain";
 import type { Payment } from "../../types/payment";
 import { formatCurrency } from "../../utils/currency";
+import { formatBackendDate } from "../../utils/date";
 
 type EditableCryptDetails = Pick<
   CryptPayload,
@@ -34,9 +35,7 @@ type DetailEditForm = {
 };
 
 function formatDate(date?: string | null) {
-  if (!date) return "-";
-
-  return new Date(date).toLocaleDateString("es-MX");
+  return formatBackendDate(date);
 }
 
 function formatNullableText(value?: string | null, fallback = "-") {

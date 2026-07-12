@@ -14,10 +14,26 @@ import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
 import ConfirmModal from "../components/common/ConfirmModal";
 import { getApiErrorMessage } from "../utils/apiError";
+import { getBackendDateTime } from "../utils/date";
 import { formatCurrency } from "../utils/format";
 
 type AvailabilityFilter = "all" | "available" | "occupied";
 type PaymentStatusFilter = "all" | "no-payment" | "paying" | "completed";
+type PresenceFilter = "all" | "yes" | "no";
+type SortColumn =
+  | "cryptCode"
+  | "title"
+  | "client"
+  | "beneficiary"
+  | "remains"
+  | "plateText"
+  | "cost"
+  | "totalPaid"
+  | "balanceDue"
+  | "paymentsCount"
+  | "purchaseDate"
+  | "paymentStatus";
+type SortDirection = "asc" | "desc";
 
 function getCryptPaymentStatus(
   crypt: Crypt
@@ -31,6 +47,55 @@ function getCryptPaymentStatus(
   if (balanceDue > 0) return "paying";
 
   return "completed";
+}
+
+function getClientName(client: Crypt["client"] | Crypt["beneficiary"]) {
+  if (!client) return "";
+
+  return `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
+}
+
+function getCryptCode(crypt: Crypt) {
+  return `${crypt.section}-${crypt.letter}-${crypt.number}`;
+}
+
+function getComparableDate(value?: string | null) {
+  return getBackendDateTime(value);
+}
+
+function getDateInputTime(value: string, boundary: "start" | "end") {
+  if (!value) return null;
+
+  const suffix = boundary === "start" ? "T00:00:00" : "T23:59:59";
+  const time = new Date(`${value}${suffix}`).getTime();
+
+  return Number.isNaN(time) ? null : time;
+}
+
+function matchesPresenceFilter(hasValue: boolean, filter: PresenceFilter) {
+  if (filter === "all") return true;
+
+  return filter === "yes" ? hasValue : !hasValue;
+}
+
+function compareValues(
+  firstValue: string | number | null,
+  secondValue: string | number | null,
+  direction: SortDirection
+) {
+  if (firstValue === null && secondValue === null) return 0;
+  if (firstValue === null) return direction === "asc" ? 1 : -1;
+  if (secondValue === null) return direction === "asc" ? -1 : 1;
+
+  const result =
+    typeof firstValue === "number" && typeof secondValue === "number"
+      ? firstValue - secondValue
+      : firstValue.toString().localeCompare(secondValue.toString(), "es-MX", {
+          numeric: true,
+          sensitivity: "base",
+        });
+
+  return direction === "asc" ? result : -result;
 }
 
 function CryptsPage() {
@@ -78,6 +143,14 @@ function CryptsPage() {
     useState<AvailabilityFilter>("all");
   const [paymentStatusFilter, setPaymentStatusFilter] =
     useState<PaymentStatusFilter>("all");
+  const [purchaseDateFrom, setPurchaseDateFrom] = useState("");
+  const [purchaseDateTo, setPurchaseDateTo] = useState("");
+  const [beneficiaryFilter, setBeneficiaryFilter] =
+    useState<PresenceFilter>("all");
+  const [titleFilter, setTitleFilter] = useState<PresenceFilter>("all");
+  const [plateFilter, setPlateFilter] = useState<PresenceFilter>("all");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("cryptCode");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const [savingCrypt, setSavingCrypt] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
@@ -161,19 +234,78 @@ function CryptsPage() {
 
   const filteredCrypts = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
+    const purchaseFromTime = getDateInputTime(purchaseDateFrom, "start");
+    const purchaseToTime = getDateInputTime(purchaseDateTo, "end");
+
+    const getPurchaseDate = (crypt: Crypt) => {
+      return crypt.id ? purchaseDateByCryptId[crypt.id] ?? crypt.purchasedAt : crypt.purchasedAt;
+    };
+
+    const getBeneficiaryClient = (crypt: Crypt) => {
+      return (
+        crypt.beneficiary ??
+        clients.find((client) => client.id === crypt.beneficiaryId) ??
+        null
+      );
+    };
+
+    const getSortValue = (crypt: Crypt): string | number | null => {
+      const beneficiaryClient = getBeneficiaryClient(crypt);
+
+      switch (sortColumn) {
+        case "cryptCode":
+          return getCryptCode(crypt);
+        case "title":
+          return crypt.title?.trim() || null;
+        case "client":
+          return getClientName(crypt.client) || null;
+        case "beneficiary":
+          return getClientName(beneficiaryClient) || null;
+        case "remains":
+          return crypt.id ? activeRemainsCountByCryptId[crypt.id] ?? 0 : 0;
+        case "plateText":
+          return crypt.plateText?.trim() || null;
+        case "cost":
+          return crypt.cost ?? 0;
+        case "totalPaid":
+          return crypt.balance?.totalPaid ?? 0;
+        case "balanceDue":
+          return crypt.balance?.balanceDue ?? crypt.cost ?? 0;
+        case "paymentsCount":
+          return crypt.balance?.paymentsCount ?? 0;
+        case "purchaseDate":
+          return getComparableDate(getPurchaseDate(crypt));
+        case "paymentStatus": {
+          const paymentStatusOrder: Record<
+            Exclude<PaymentStatusFilter, "all">,
+            number
+          > = {
+            "no-payment": 1,
+            paying: 2,
+            completed: 3,
+          };
+          const status = getCryptPaymentStatus(crypt);
+
+          return status ? paymentStatusOrder[status] : null;
+        }
+        default:
+          return getCryptCode(crypt);
+      }
+    };
 
     return validCrypts.filter((crypt) => {
       const section = crypt.section?.toString() ?? "";
       const letter = crypt.letter?.toLowerCase() ?? "";
       const number = crypt.number?.toLowerCase() ?? "";
 
-      const cryptCode = `${section}-${letter}-${number}`;
+      const cryptCode = getCryptCode(crypt).toLowerCase();
 
-      const clientName = crypt.client
-        ? `${crypt.client.firstName ?? ""} ${
-            crypt.client.lastName ?? ""
-          }`.toLowerCase()
-        : "";
+      const clientName = getClientName(crypt.client).toLowerCase();
+      const beneficiaryClient = getBeneficiaryClient(crypt);
+      const hasBeneficiary = Boolean(crypt.beneficiaryId || beneficiaryClient);
+      const hasTitle = Boolean(crypt.title?.trim());
+      const hasPlate = Boolean(crypt.plateText?.trim());
+      const purchaseDateTime = getComparableDate(getPurchaseDate(crypt));
 
       const matchesSearch =
         normalizedSearch === "" ||
@@ -196,19 +328,57 @@ function CryptsPage() {
         paymentStatusFilter === "all" ||
         getCryptPaymentStatus(crypt) === paymentStatusFilter;
 
+      const matchesPurchaseDateFrom =
+        purchaseFromTime === null ||
+        (purchaseDateTime !== null && purchaseDateTime >= purchaseFromTime);
+
+      const matchesPurchaseDateTo =
+        purchaseToTime === null ||
+        (purchaseDateTime !== null && purchaseDateTime <= purchaseToTime);
+
+      const matchesBeneficiary = matchesPresenceFilter(
+        hasBeneficiary,
+        beneficiaryFilter
+      );
+
+      const matchesTitle = matchesPresenceFilter(hasTitle, titleFilter);
+
+      const matchesPlate = matchesPresenceFilter(hasPlate, plateFilter);
+
       return (
         matchesSearch &&
         matchesSection &&
         matchesAvailability &&
-        matchesPaymentStatus
+        matchesPaymentStatus &&
+        matchesPurchaseDateFrom &&
+        matchesPurchaseDateTo &&
+        matchesBeneficiary &&
+        matchesTitle &&
+        matchesPlate
+      );
+    }).sort((firstCrypt, secondCrypt) => {
+      return compareValues(
+        getSortValue(firstCrypt),
+        getSortValue(secondCrypt),
+        sortDirection
       );
     });
   }, [
     validCrypts,
+    clients,
     searchTerm,
     sectionFilter,
     availabilityFilter,
     paymentStatusFilter,
+    purchaseDateFrom,
+    purchaseDateTo,
+    beneficiaryFilter,
+    titleFilter,
+    plateFilter,
+    sortColumn,
+    sortDirection,
+    purchaseDateByCryptId,
+    activeRemainsCountByCryptId,
   ]);
 
   const sectionOptions = useMemo(() => {
@@ -284,7 +454,7 @@ function CryptsPage() {
   }, [selectedCryptForDetail?.id]);
 
   useEffect(() => {
-    const cryptsToLoad = filteredCrypts.filter((crypt) => {
+    const cryptsToLoad = validCrypts.filter((crypt) => {
       const cryptId = crypt.id;
       const clientId = getCryptClientId(crypt);
       const paymentsCount = crypt.balance?.paymentsCount ?? 0;
@@ -335,7 +505,7 @@ function CryptsPage() {
     return () => {
       isCurrent = false;
     };
-  }, [filteredCrypts, purchaseDateByCryptId]);
+  }, [validCrypts, purchaseDateByCryptId]);
 
   useEffect(() => {
     if (!selectedCryptForDetail?.id) {
@@ -880,66 +1050,176 @@ function CryptsPage() {
         </div>
       </div>
 
-      <div className="filters-container">
-        <div className="form-group">
-          <label>Buscar</label>
-          <input
-            type="text"
-            placeholder="Buscar por cripta o cliente..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={isBusy}
-          />
+      <details className="filters-panel" open>
+        <summary>
+          <span>Filtros</span>
+          <strong>{filteredCrypts.length} resultados</strong>
+        </summary>
+
+        <div className="filters-container">
+          <div className="form-group filter-search">
+            <label>Buscar</label>
+            <input
+              type="text"
+              placeholder="Buscar por cripta o cliente..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={isBusy}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Disponibilidad</label>
+            <select
+              value={availabilityFilter}
+              onChange={(e) =>
+                setAvailabilityFilter(e.target.value as AvailabilityFilter)
+              }
+              disabled={isBusy}
+            >
+              <option value="all">Todas</option>
+              <option value="available">Disponibles</option>
+              <option value="occupied">Ocupadas</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Estado de pago</label>
+            <select
+              value={paymentStatusFilter}
+              onChange={(e) =>
+                setPaymentStatusFilter(e.target.value as PaymentStatusFilter)
+              }
+              disabled={isBusy}
+            >
+              <option value="all">Todos</option>
+              <option value="no-payment">Sin pago</option>
+              <option value="paying">Abonando</option>
+              <option value="completed">Liquidada</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Sección</label>
+            <select
+              value={sectionFilter}
+              onChange={(e) => setSectionFilter(e.target.value)}
+              disabled={isBusy}
+            >
+              <option value="all">Todas</option>
+
+              {sectionOptions.map((section) => (
+                <option key={section} value={section}>
+                  Sección {section}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Compra desde</label>
+            <input
+              type="date"
+              value={purchaseDateFrom}
+              onChange={(e) => setPurchaseDateFrom(e.target.value)}
+              disabled={isBusy}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Compra hasta</label>
+            <input
+              type="date"
+              value={purchaseDateTo}
+              onChange={(e) => setPurchaseDateTo(e.target.value)}
+              disabled={isBusy}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Beneficiario</label>
+            <select
+              value={beneficiaryFilter}
+              onChange={(e) =>
+                setBeneficiaryFilter(e.target.value as PresenceFilter)
+              }
+              disabled={isBusy}
+            >
+              <option value="all">Todos</option>
+              <option value="yes">Con beneficiario</option>
+              <option value="no">Sin beneficiario</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Título</label>
+            <select
+              value={titleFilter}
+              onChange={(e) => setTitleFilter(e.target.value as PresenceFilter)}
+              disabled={isBusy}
+            >
+              <option value="all">Todos</option>
+              <option value="yes">Con título</option>
+              <option value="no">Sin título</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Placa</label>
+            <select
+              value={plateFilter}
+              onChange={(e) => setPlateFilter(e.target.value as PresenceFilter)}
+              disabled={isBusy}
+            >
+              <option value="all">Todas</option>
+              <option value="yes">Con placa</option>
+              <option value="no">Sin placa</option>
+            </select>
+          </div>
         </div>
 
-        <div className="form-group">
-          <label>Disponibilidad</label>
-          <select
-            value={availabilityFilter}
-            onChange={(e) =>
-              setAvailabilityFilter(e.target.value as AvailabilityFilter)
-            }
-            disabled={isBusy}
-          >
-            <option value="all">Todas</option>
-            <option value="available">Disponibles</option>
-            <option value="occupied">Ocupadas</option>
-          </select>
-        </div>
+        <details className="sort-panel">
+          <summary>Ordenar por</summary>
 
-        <div className="form-group">
-          <label>Estado de pago</label>
-          <select
-            value={paymentStatusFilter}
-            onChange={(e) =>
-              setPaymentStatusFilter(e.target.value as PaymentStatusFilter)
-            }
-            disabled={isBusy}
-          >
-            <option value="all">Todos</option>
-            <option value="no-payment">Sin pago</option>
-            <option value="paying">Abonando</option>
-            <option value="completed">Liquidada</option>
-          </select>
-        </div>
+          <div className="sort-controls">
+            <div className="form-group">
+              <label>Columna</label>
+              <select
+                value={sortColumn}
+                onChange={(e) => setSortColumn(e.target.value as SortColumn)}
+                disabled={isBusy}
+              >
+                <option value="cryptCode">Cripta</option>
+                <option value="title">Título</option>
+                <option value="client">Cliente</option>
+                <option value="beneficiary">Beneficiario</option>
+                <option value="remains">Restos</option>
+                <option value="plateText">Placa</option>
+                <option value="cost">Costo</option>
+                <option value="totalPaid">Pagado</option>
+                <option value="balanceDue">Saldo</option>
+                <option value="paymentsCount">Pagos</option>
+                <option value="purchaseDate">Compra</option>
+                <option value="paymentStatus">Estado de pago</option>
+              </select>
+            </div>
 
-        <div className="form-group">
-          <label>Sección</label>
-          <select
-            value={sectionFilter}
-            onChange={(e) => setSectionFilter(e.target.value)}
-            disabled={isBusy}
-          >
-            <option value="all">Todas</option>
-
-            {sectionOptions.map((section) => (
-              <option key={section} value={section}>
-                Sección {section}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+            <div className="form-group">
+              <label>Dirección</label>
+              <select
+                value={sortDirection}
+                onChange={(e) =>
+                  setSortDirection(e.target.value as SortDirection)
+                }
+                disabled={isBusy}
+              >
+                <option value="asc">Menor a mayor</option>
+                <option value="desc">Mayor a menor</option>
+              </select>
+            </div>
+          </div>
+        </details>
+      </details>
 
       <p className="results-count">
         Mostrando {filteredCrypts.length} de {cryptSummary.totalCrypts} criptas

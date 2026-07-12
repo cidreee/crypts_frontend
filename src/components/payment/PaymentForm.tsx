@@ -1,6 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import type { Payment, PaymentPayload } from "../../types/payment";
-import { getTodayLocalDate } from "../../utils/date";
+import {
+  getTodayLocalDate,
+  toDateInputValue,
+  toUtcNoonDateTime,
+} from "../../utils/date";
 import { validatePaymentValues } from "../../utils/paymentValidation";
 import PaymentFields from "./PaymentFields";
 
@@ -32,7 +36,7 @@ function getPaymentFormData(payment?: Payment | null): PaymentFormData {
   return {
     amount: payment.amount.toString(),
     paymentMethodId: payment.paymentMethodId.toString(),
-    paymentDate: payment.paymentDate,
+    paymentDate: toDateInputValue(payment.paymentDate),
   };
 }
 
@@ -115,7 +119,7 @@ function PaymentForm({
       cryptId: finalCryptId,
       amount: Number(formData.amount),
       paymentMethodId: Number(formData.paymentMethodId),
-      paymentDate: formData.paymentDate,
+      paymentDate: toUtcNoonDateTime(formData.paymentDate),
       isActive: payment?.isActive ?? true,
     });
   };

@@ -13,7 +13,8 @@
 }
 
 .table-container {
-  overflow-x: scroll;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
   scrollbar-gutter: stable;
   padding-bottom: 0.25rem;
   background: var(--surface);
@@ -46,7 +47,7 @@
 .data-table th {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
   background-color: var(--surface-muted);
   color: #475467;
   font-size: 0.78rem;

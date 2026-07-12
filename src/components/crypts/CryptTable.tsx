@@ -1,5 +1,6 @@
 ﻿import type { Crypt } from "../../types/crypt";
 import { formatCurrency } from "../../utils/format";
+import { formatBackendDate } from "../../utils/date";
 
 type CryptTableProps = {
   crypts: Crypt[];
@@ -37,9 +38,7 @@ function getPaymentStatusClass(crypt: Crypt) {
 }
 
 function formatDate(date?: string | null) {
-  if (!date) return "-";
-
-  return new Date(date).toLocaleDateString("es-MX");
+  return formatBackendDate(date);
 }
 
 function formatClientName(

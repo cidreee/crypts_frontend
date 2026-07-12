@@ -57,6 +57,14 @@ export const apiService = {
       return unwrapApiResponse(response.data);
     },
 
+    deactivate: async (id: number): Promise<Client> => {
+      const response = await axiosClient.put<ApiResponse<Client>>(
+        `/Client/deactivate/${id}`,
+      );
+
+      return unwrapApiResponse(response.data);
+    },
+
     update: async (
       id: number,
       client: UpdateClientPayload

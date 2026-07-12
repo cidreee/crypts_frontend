@@ -1,5 +1,6 @@
 ﻿import type { Payment } from "../../types/payment";
 import { formatCurrency } from "../../utils/currency";
+import { formatBackendDate } from "../../utils/date";
 
 type PaymentHistoryTableProps = {
   payments: Payment[];
@@ -48,9 +49,7 @@ function PaymentHistoryTable({
               </td>
 
               <td>
-                {payment.paymentDate
-                  ? new Date(payment.paymentDate).toLocaleDateString("es-MX")
-                  : "Sin fecha"}
+                {formatBackendDate(payment.paymentDate, "Sin fecha")}
               </td>
 
               <td>

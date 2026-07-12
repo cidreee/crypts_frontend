@@ -1,5 +1,6 @@
 ﻿import type { Client } from "../../types/client";
 import { formatCurrency } from "../../utils/currency";
+import { formatBackendDate } from "../../utils/date";
 
 type ClientTableProps = {
   clients: Client[];
@@ -68,9 +69,7 @@ function ClientTable({
               </td>
 
               <td>
-                {client.createdAt
-                  ? new Date(client.createdAt).toLocaleDateString("es-MX")
-                  : "Sin fecha"}
+                {formatBackendDate(client.createdAt, "Sin fecha")}
               </td>
 
               <td>
