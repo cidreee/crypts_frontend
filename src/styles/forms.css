@@ -55,6 +55,7 @@
 
 input,
 select,
+textarea,
 .currency-input-wrapper {
   width: 100%;
   min-height: 42px;
@@ -71,8 +72,14 @@ select,
 }
 
 input,
-select {
+select,
+textarea {
   padding: 0.65rem 0.75rem;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 select {
@@ -96,7 +103,8 @@ input::placeholder {
 }
 
 input:disabled,
-select:disabled {
+select:disabled,
+textarea:disabled {
   background-color: var(--surface-muted);
   color: var(--text-muted);
   cursor: not-allowed;
@@ -112,6 +120,7 @@ input[type="checkbox"] {
 
 input:focus,
 select:focus,
+textarea:focus,
 .currency-input-wrapper:focus-within {
   outline: none;
   border-color: var(--primary);

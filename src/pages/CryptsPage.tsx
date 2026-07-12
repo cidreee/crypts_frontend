@@ -458,12 +458,10 @@ function CryptsPage() {
   useEffect(() => {
     const cryptsToLoad = validCrypts.filter((crypt) => {
       const cryptId = crypt.id;
-      const clientId = getCryptClientId(crypt);
       const paymentsCount = crypt.balance?.paymentsCount ?? 0;
 
       return (
         cryptId &&
-        clientId &&
         paymentsCount > 0 &&
         !purchaseDateByCryptId[cryptId]
       );
@@ -476,11 +474,7 @@ function CryptsPage() {
     Promise.all(
       cryptsToLoad.map(async (crypt) => {
         const cryptId = crypt.id as number;
-        const clientId = getCryptClientId(crypt) as number;
-        const payments = await apiService.payments.getHistoryByClientId(
-          clientId,
-          cryptId
-        );
+        const payments = await apiService.payments.getHistory(undefined, cryptId);
 
         return [cryptId, getFirstPaymentDate(payments)] as const;
       })
@@ -516,14 +510,6 @@ function CryptsPage() {
       return;
     }
 
-    const clientId = getCryptClientId(selectedCryptForDetail);
-
-    if (!clientId) {
-      setDetailPayments([]);
-      setDetailPaymentsError("");
-      return;
-    }
-
     let isCurrent = true;
 
     const loadDetailPayments = async () => {
@@ -531,8 +517,8 @@ function CryptsPage() {
         setDetailPaymentsLoading(true);
         setDetailPaymentsError("");
 
-        const payments = await apiService.payments.getHistoryByClientId(
-          clientId,
+        const payments = await apiService.payments.getHistory(
+          undefined,
           selectedCryptForDetail.id as number
         );
 

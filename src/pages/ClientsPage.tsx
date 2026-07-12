@@ -6,7 +6,6 @@ import { formatCurrency } from "../utils/currency";
 import ClientTable from "../components/clients/ClientTable";
 import ClientForm from "../components/clients/ClientForm";
 import Modal from "../components/common/Modal";
-import ConfirmModal from "../components/common/ConfirmModal";
 
 type StatusFilter = "all" | "active" | "inactive";
 type BalanceFilter = "all" | "withDebt" | "withoutDebt";
@@ -31,6 +30,7 @@ function ClientsPage() {
   const [clientToDeactivate, setClientToDeactivate] = useState<Client | null>(
     null
   );
+  const [deactivationReason, setDeactivationReason] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -124,16 +124,28 @@ function ClientsPage() {
   const handleRequestDeactivateClient = (client: Client) => {
     clearMessages();
     setClientToDeactivate(client);
+    setDeactivationReason("");
   };
 
   const handleConfirmDeactivateClient = async () => {
     if (!clientToDeactivate?.id) return;
 
-    const success = await deactivateClient(clientToDeactivate.id);
+    const success = await deactivateClient(
+      clientToDeactivate.id,
+      deactivationReason
+    );
 
     if (success) {
       setClientToDeactivate(null);
+      setDeactivationReason("");
     }
+  };
+
+  const handleCloseDeactivateModal = () => {
+    if (saving) return;
+
+    setClientToDeactivate(null);
+    setDeactivationReason("");
   };
 
   const handleCloseModal = () => {
@@ -266,20 +278,49 @@ function ClientsPage() {
         />
       </Modal>
 
-      <ConfirmModal
+      <Modal
         isOpen={clientToDeactivate !== null}
         title="Desactivar cliente"
-        message="¿Seguro que quieres desactivar este cliente?"
-        confirmLabel="Desactivar cliente"
-        confirmClassName="btn-danger"
-        confirming={saving}
-        onConfirm={handleConfirmDeactivateClient}
-        onCancel={() => {
-          if (!saving) {
-            setClientToDeactivate(null);
-          }
-        }}
-      />
+        onClose={handleCloseDeactivateModal}
+      >
+        <div className="form-container">
+          <p className="confirm-message">
+            ¿Seguro que quieres desactivar este cliente?
+          </p>
+
+          <div className="form-group form-group-full">
+            <label htmlFor="deactivation-reason">Motivo</label>
+            <textarea
+              id="deactivation-reason"
+              value={deactivationReason}
+              onChange={(event) => setDeactivationReason(event.target.value)}
+              disabled={saving}
+              maxLength={240}
+              placeholder="Opcional"
+            />
+          </div>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleCloseDeactivateModal}
+              disabled={saving}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={handleConfirmDeactivateClient}
+              disabled={saving}
+            >
+              {saving ? "Procesando..." : "Desactivar cliente"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }

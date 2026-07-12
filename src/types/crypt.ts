@@ -2,6 +2,7 @@ import type { Client } from "./client";
 import type { SaleCryptStatus } from "./saleCryptStatus";
 import type { CryptBalance } from "./cryptBalance";
 import type { CryptRemain } from "./cryptRemain";
+import type { CryptOwnershipTransfer } from "./cryptOwnershipTransfer";
 
 export interface Crypt {
   id?: number;
@@ -24,6 +25,7 @@ export interface Crypt {
   client?: Client | null;
   cryptRemains?: CryptRemain[] | null;
   saleCryptStatus?: SaleCryptStatus | null;
+  CryptOwnershipTransfers?: CryptOwnershipTransfer[] | null;
 
   balance?: CryptBalance | null;
 }

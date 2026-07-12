@@ -71,12 +71,15 @@ export function useClients() {
     }
   };
 
-  const deactivateClient = async (id: number): Promise<boolean> => {
+  const deactivateClient = async (
+    id: number,
+    reason?: string
+  ): Promise<boolean> => {
     try {
       setSaving(true);
       clearMessages();
 
-      await apiService.clients.deactivate(id);
+      await apiService.clients.deactivate(id, reason);
       setSuccessMessage("Cliente desactivado correctamente.");
 
       await loadClients();

@@ -21,7 +21,7 @@ export function usePayments(clientId: number, initialCryptId?: number) {
         setLoading(true);
         setError("");
 
-        const data = await apiService.payments.getHistoryByClientId(
+        const data = await apiService.payments.getHistory(
           clientId,
           cryptId
         );

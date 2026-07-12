@@ -14,6 +14,9 @@ export interface Client {
   isActive: boolean;
   createdAt?: string;
   balance?: ClientBalance | null;
+
+  cryptOwnershipTransferFromClients?: Client[] | null;
+  cryptOwnershipTransferToClients?: Client[] | null;
 }
 
 export type ClientPayload = Pick<
