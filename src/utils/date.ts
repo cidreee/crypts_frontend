@@ -56,6 +56,3 @@ export function toDateInputValue(value?: string | null) {
   return new Date(date.getTime() - timezoneOffset).toISOString().split("T")[0];
 }
 
-export function toUtcNoonDateTime(date: string) {
-  return date ? `${date}T12:00:00Z` : date;
-}

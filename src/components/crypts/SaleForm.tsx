@@ -8,7 +8,7 @@ import {
   validatePhoneNumber,
   type PhoneCountryCode,
 } from "../../utils/phone";
-import { getTodayLocalDate, toUtcNoonDateTime } from "../../utils/date";
+import { getTodayLocalDate } from "../../utils/date";
 import { validatePaymentValues } from "../../utils/paymentValidation";
 
 type SaleMode = "existing" | "new";
@@ -242,7 +242,7 @@ function SaleForm({
       cryptId: 0,
       amount: Number(formData.amount),
       paymentMethodId: Number(formData.paymentMethodId),
-      paymentDate: toUtcNoonDateTime(formData.paymentDate),
+      paymentDate: formData.paymentDate,
       isActive: true,
     };
   };

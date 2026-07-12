@@ -25,7 +25,6 @@ type ClientFormData = {
   lastName: string;
   phoneCountryCode: PhoneCountryCode;
   phoneNumber: string;
-  isActive: boolean;
 };
 
 const emptyClientFormData: ClientFormData = {
@@ -33,7 +32,6 @@ const emptyClientFormData: ClientFormData = {
   lastName: "",
   phoneCountryCode: "+52",
   phoneNumber: "",
-  isActive: true,
 };
 
 function getClientFormData(client: Client | null): ClientFormData {
@@ -48,7 +46,6 @@ function getClientFormData(client: Client | null): ClientFormData {
     lastName: client.lastName,
     phoneCountryCode: phone.phoneCountryCode,
     phoneNumber: phone.phoneNumber,
-    isActive: client.isActive,
   };
 }
 
@@ -86,9 +83,7 @@ function ClientForm({
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "isActive"
-          ? value === "true"
-          : name === "phoneCountryCode"
+        name === "phoneCountryCode"
           ? (value as PhoneCountryCode)
           : value,
     }));
@@ -121,7 +116,7 @@ function ClientForm({
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       phoneNumber: buildPhoneNumber(formData),
-      isActive: formData.isActive,
+      isActive: selectedClient?.isActive ?? true,
       createdAt: selectedClient?.createdAt,
     };
 
@@ -186,19 +181,6 @@ function ClientForm({
             maxLength={10}
           />
         </div>
-      </div>
-
-      <div className="form-group">
-        <label>Estado</label>
-        <select
-          name="isActive"
-          value={formData.isActive ? "true" : "false"}
-          onChange={handleChange}
-          disabled={saving}
-        >
-          <option value="true">Activo</option>
-          <option value="false">Inactivo</option>
-        </select>
       </div>
 
       <div className="form-actions">

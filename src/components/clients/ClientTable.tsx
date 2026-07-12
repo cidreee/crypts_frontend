@@ -6,12 +6,14 @@ type ClientTableProps = {
   clients: Client[];
   onEditClient: (client: Client) => void;
   onViewPayments: (client: Client) => void;
+  onDeactivateClient: (client: Client) => void;
 };
 
 function ClientTable({
   clients = [],
   onEditClient,
   onViewPayments,
+  onDeactivateClient,
 }: ClientTableProps) {
   if (clients.length === 0) {
     return <p className="empty-message">No hay clientes registrados.</p>;
@@ -87,6 +89,10 @@ function ClientTable({
                       onViewPayments(client);
                     }
 
+                    if (action === "deactivate") {
+                      onDeactivateClient(client);
+                    }
+
                     e.target.value = "";
                   }}
                 >
@@ -95,6 +101,9 @@ function ClientTable({
                   </option>
                   <option value="edit">Editar cliente</option>
                   <option value="payments">Ver historial de pagos</option>
+                  {client.isActive && (
+                    <option value="deactivate">Desactivar cliente</option>
+                  )}
                 </select>
               </td>
             </tr>

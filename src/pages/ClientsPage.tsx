@@ -6,6 +6,7 @@ import { formatCurrency } from "../utils/currency";
 import ClientTable from "../components/clients/ClientTable";
 import ClientForm from "../components/clients/ClientForm";
 import Modal from "../components/common/Modal";
+import ConfirmModal from "../components/common/ConfirmModal";
 
 type StatusFilter = "all" | "active" | "inactive";
 type BalanceFilter = "all" | "withDebt" | "withoutDebt";
@@ -21,11 +22,15 @@ function ClientsPage() {
     successMessage,
     createClient,
     updateClient,
+    deactivateClient,
     clearMessages,
   } = useClients();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientToDeactivate, setClientToDeactivate] = useState<Client | null>(
+    null
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -114,6 +119,21 @@ function ClientsPage() {
     if (!client.id) return;
 
     navigate(`/clients/${client.id}/payments`);
+  };
+
+  const handleRequestDeactivateClient = (client: Client) => {
+    clearMessages();
+    setClientToDeactivate(client);
+  };
+
+  const handleConfirmDeactivateClient = async () => {
+    if (!clientToDeactivate?.id) return;
+
+    const success = await deactivateClient(clientToDeactivate.id);
+
+    if (success) {
+      setClientToDeactivate(null);
+    }
   };
 
   const handleCloseModal = () => {
@@ -228,6 +248,7 @@ function ClientsPage() {
           clients={filteredClients}
           onEditClient={handleEditClient}
           onViewPayments={handleViewPayments}
+          onDeactivateClient={handleRequestDeactivateClient}
         />
       )}
 
@@ -244,6 +265,21 @@ function ClientsPage() {
           onCancel={handleCloseModal}
         />
       </Modal>
+
+      <ConfirmModal
+        isOpen={clientToDeactivate !== null}
+        title="Desactivar cliente"
+        message="¿Seguro que quieres desactivar este cliente?"
+        confirmLabel="Desactivar cliente"
+        confirmClassName="btn-danger"
+        confirming={saving}
+        onConfirm={handleConfirmDeactivateClient}
+        onCancel={() => {
+          if (!saving) {
+            setClientToDeactivate(null);
+          }
+        }}
+      />
     </section>
   );
 }

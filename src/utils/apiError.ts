@@ -8,6 +8,10 @@ type ErrorResponse = {
 
 export function getApiErrorMessage(error: unknown, fallbackMessage: string) {
   if (!isAxiosError<ErrorResponse>(error)) {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
     return fallbackMessage;
   }
 

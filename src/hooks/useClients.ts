@@ -71,6 +71,34 @@ export function useClients() {
     }
   };
 
+  const deactivateClient = async (id: number): Promise<boolean> => {
+    try {
+      setSaving(true);
+      clearMessages();
+
+      await apiService.clients.deactivate(id);
+      setSuccessMessage("Cliente desactivado correctamente.");
+
+      await loadClients();
+      return true;
+    } catch (err) {
+      console.error("Error deactivating client:", err);
+      const message = getApiErrorMessage(
+        err,
+        "No se pudo desactivar el cliente."
+      );
+
+      setError(
+        message === "Beneficiary can not be null when deactivating a client"
+          ? "No se pudo desactivar el cliente. Todas sus criptas deben tener un beneficiario asignado."
+          : message
+      );
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     loadClients();
   }, [loadClients]);
@@ -84,6 +112,7 @@ export function useClients() {
     loadClients,
     createClient,
     updateClient,
+    deactivateClient,
     clearMessages,
   };
 }

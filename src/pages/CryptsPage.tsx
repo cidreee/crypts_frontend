@@ -177,7 +177,9 @@ function CryptsPage() {
 
   const activeRemainsCountByCryptId = useMemo(() => {
     return cryptRemains.reduce<Record<number, number>>((counts, remain) => {
-      if (!remain.cryptId || remain.isActive === false) return counts;
+      if (remain.cryptId == null || remain.isActive !== true) {
+        return counts;
+      }
 
       counts[remain.cryptId] = (counts[remain.cryptId] ?? 0) + 1;
 

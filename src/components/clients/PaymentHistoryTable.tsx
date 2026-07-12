@@ -36,9 +36,7 @@ function PaymentHistoryTable({
               <td>{payment.id}</td>
 
               <td>
-                {payment.crypt?.code ??
-                  payment.crypt?.name ??
-                  `Cripta ${payment.cryptId}`}
+                `${payment.crypt?.section}-${payment.crypt?.letter}-${payment.crypt?.number}`
               </td>
 
               <td>{formatCurrency(payment.amount)}</td>

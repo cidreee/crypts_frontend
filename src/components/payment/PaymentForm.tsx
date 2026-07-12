@@ -3,7 +3,6 @@ import type { Payment, PaymentPayload } from "../../types/payment";
 import {
   getTodayLocalDate,
   toDateInputValue,
-  toUtcNoonDateTime,
 } from "../../utils/date";
 import { validatePaymentValues } from "../../utils/paymentValidation";
 import PaymentFields from "./PaymentFields";
@@ -119,7 +118,7 @@ function PaymentForm({
       cryptId: finalCryptId,
       amount: Number(formData.amount),
       paymentMethodId: Number(formData.paymentMethodId),
-      paymentDate: toUtcNoonDateTime(formData.paymentDate),
+      paymentDate: formData.paymentDate,
       isActive: payment?.isActive ?? true,
     });
   };
