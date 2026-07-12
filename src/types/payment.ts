@@ -5,7 +5,7 @@ import type { PaymentMethod } from "./paymentMethod";
 export interface Payment {
   id?: number;
   cryptId: number;
-  paidByCLientId: number;
+  paidByClientId: number;
   amount: number;
   paymentMethodId: number;
   paymentDate: string;
@@ -13,16 +13,16 @@ export interface Payment {
   createdAt?: string;
   updatedAt?: string | null;
 
-  paidByClient?: Client;
+  paidByClient?: Client | null;
 
-  crypt?: Crypt;
+  crypt?: Crypt | null;
 
-  paymentMethod?: PaymentMethod;
+  paymentMethod?: PaymentMethod | null;
 }
 
 export type PaymentPayload = Pick<
   Payment,
-  "cryptId" | "paidByCLientId" |"amount" | "paymentMethodId" | "paymentDate"
+  "cryptId" | "paidByClientId" | "amount" | "paymentMethodId" | "paymentDate"
 > & {
   id?: number;
   isActive?: boolean;

@@ -7,6 +7,22 @@ type PaymentHistoryTableProps = {
   onEditPayment: (payment: Payment) => void;
 };
 
+function formatClientName(payment: Payment) {
+  const client = payment.paidByClient;
+
+  if (!client) return `Cliente ${payment.paidByClientId}`;
+
+  return `${client.firstName} ${client.lastName}`.trim() || `Cliente ${payment.paidByClientId}`;
+}
+
+function formatCryptCode(payment: Payment) {
+  const crypt = payment.crypt;
+
+  if (!crypt) return `Cripta ${payment.cryptId}`;
+
+  return `${crypt.section}-${crypt.letter}-${crypt.number}`;
+}
+
 function PaymentHistoryTable({
   payments,
   onEditPayment,
@@ -22,6 +38,7 @@ function PaymentHistoryTable({
           <tr>
             <th>Id</th>
             <th>Cripta</th>
+            <th>Pagó</th>
             <th>Monto</th>
             <th>Método de pago</th>
             <th>Fecha de pago</th>
@@ -35,9 +52,9 @@ function PaymentHistoryTable({
             <tr key={payment.id}>
               <td>{payment.id}</td>
 
-              <td>
-                `${payment.crypt?.section}-${payment.crypt?.letter}-${payment.crypt?.number}`
-              </td>
+              <td>{formatCryptCode(payment)}</td>
+
+              <td>{formatClientName(payment)}</td>
 
               <td>{formatCurrency(payment.amount)}</td>
 

@@ -77,10 +77,9 @@ function ClientPaymentHistoryPage() {
 
     payments.forEach((payment) => {
       if (!map.has(payment.cryptId)) {
-        const label =
-          payment.crypt?.code ??
-          payment.crypt?.name ??
-          `Cripta ${payment.cryptId}`;
+        const label = payment.crypt
+          ? `${payment.crypt.section}-${payment.crypt.letter}-${payment.crypt.number}`
+          : `Cripta ${payment.cryptId}`;
 
         map.set(payment.cryptId, label);
       }

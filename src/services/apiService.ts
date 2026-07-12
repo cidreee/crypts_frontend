@@ -163,14 +163,17 @@ export const apiService = {
 
   // PAYMENTS
   payments: {
-    getHistoryByClientId: async (
-      clientId: number,
+    getHistory: async (
+      clientId?: number,
       cryptId?: number
     ): Promise<Payment[]> => {
       const response = await axiosClient.get<ApiResponse<Payment[]>>(
-        `/Payment/client/${clientId}/history`,
+        `/Payment/history`,
         {
-          params: cryptId ? { cryptId } : {},
+          params: {
+            clientId,
+            cryptId,
+          },
         }
       );
 

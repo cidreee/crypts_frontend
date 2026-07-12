@@ -665,7 +665,7 @@ function CryptsPage() {
   const handleCreateSale = async (
     mode: "existing" | "new",
     clientData: number | ClientPayload,
-    initialPayment?: PaymentPayload,
+    initialPayment?: Omit<PaymentPayload, "paidByClientId">,
     saleDetails?: SaleDetails
   ) => {
     if (!selectedCryptForSale?.id || savingSale) return;
@@ -733,6 +733,7 @@ function CryptsPage() {
         await apiService.payments.create({
           ...initialPayment,
           cryptId: assignedCrypt.id ?? selectedCryptForSale.id,
+          paidByClientId: assignedCrypt.clientId ?? clientId,
         });
       }
 
@@ -1317,6 +1318,7 @@ function CryptsPage() {
         {selectedCryptForPayment?.id && (
           <PaymentForm
             cryptId={selectedCryptForPayment.id}
+            paidByClientId={getCryptClientId(selectedCryptForPayment)}
             saving={savingPayment}
             maxAmount={
               selectedCryptForPayment.balance?.balanceDue ??

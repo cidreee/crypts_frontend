@@ -13,6 +13,7 @@ import { validatePaymentValues } from "../../utils/paymentValidation";
 
 type SaleMode = "existing" | "new";
 type BeneficiaryMode = "none" | "existing" | "new";
+type InitialPaymentPayload = Omit<PaymentPayload, "paidByClientId">;
 
 export type SaleDetails = {
   beneficiary?: ClientPayload;
@@ -28,7 +29,7 @@ type SaleFormProps = {
   onSubmit: (
     mode: SaleMode,
     clientData: number | ClientPayload,
-    initialPayment: PaymentPayload,
+    initialPayment: InitialPaymentPayload,
     saleDetails: SaleDetails
   ) => void;
   onCancel: () => void;
@@ -237,7 +238,7 @@ function SaleForm({
     });
   };
 
-  const buildInitialPayment = (): PaymentPayload => {
+  const buildInitialPayment = (): InitialPaymentPayload => {
     return {
       cryptId: 0,
       amount: Number(formData.amount),

@@ -48,6 +48,15 @@ function formatClientName(client: Crypt["client"] | Crypt["beneficiary"]) {
   return `${client.firstName} ${client.lastName}`.trim() || "-";
 }
 
+function formatPaymentClientName(payment: Payment) {
+  if (!payment.paidByClient) return `Cliente ${payment.paidByClientId}`;
+
+  return (
+    `${payment.paidByClient.firstName} ${payment.paidByClient.lastName}`.trim() ||
+    `Cliente ${payment.paidByClientId}`
+  );
+}
+
 function getCryptCode(crypt: Crypt) {
   return `${crypt.section}-${crypt.letter}-${crypt.number}`;
 }
@@ -367,7 +376,7 @@ function CryptDetail({
               <thead>
                 <tr>
                   <th>Id</th>
-                  <th>Cliente</th>
+                  <th>Pagó</th>
                   <th>Monto</th>
                   <th>Método</th>
                   <th>Fecha</th>
@@ -379,7 +388,7 @@ function CryptDetail({
                 {payments.map((payment) => (
                   <tr key={payment.id}>
                     <td>{payment.id}</td>
-                    <td>{clientName}</td>
+                    <td>{formatPaymentClientName(payment)}</td>
                     <td>{formatCurrency(payment.amount)}</td>
                     <td>
                       {payment.paymentMethod?.name ??

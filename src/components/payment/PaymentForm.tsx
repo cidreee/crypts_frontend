@@ -10,6 +10,7 @@ import PaymentFields from "./PaymentFields";
 type PaymentFormProps = {
   payment?: Payment | null;
   cryptId?: number;
+  paidByClientId?: number | null;
   saving?: boolean;
   maxAmount?: number | null;
   serverError?: string;
@@ -42,6 +43,7 @@ function getPaymentFormData(payment?: Payment | null): PaymentFormData {
 function PaymentForm({
   payment,
   cryptId,
+  paidByClientId,
   saving = false,
   maxAmount,
   serverError = "",
@@ -107,15 +109,22 @@ function PaymentForm({
     }
 
     const finalCryptId = payment?.cryptId ?? cryptId;
+    const finalPaidByClientId = payment?.paidByClientId ?? paidByClientId;
 
     if (!finalCryptId) {
       setFormError("No se encontró la cripta para registrar el pago.");
       return;
     }
 
+    if (!finalPaidByClientId) {
+      setFormError("No se encontrÃ³ el cliente actual de la cripta.");
+      return;
+    }
+
     await onSubmit({
       id: payment?.id,
       cryptId: finalCryptId,
+      paidByClientId: finalPaidByClientId,
       amount: Number(formData.amount),
       paymentMethodId: Number(formData.paymentMethodId),
       paymentDate: formData.paymentDate,
