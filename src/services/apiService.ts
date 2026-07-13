@@ -165,6 +165,14 @@ export const apiService = {
 
       return unwrapApiResponse(response.data);
     },
+
+    deactivate: async (id: number): Promise<CryptRemain> => {
+      const response = await axiosClient.delete<ApiResponse<CryptRemain>>(
+        `/CryptRemain/${id}`
+      );
+
+      return unwrapApiResponse(response.data);
+    },
   },
 
   // PAYMENTS

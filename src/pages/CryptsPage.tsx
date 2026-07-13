@@ -118,7 +118,7 @@ function getComparableDate(value?: string | null) {
 }
 
 function getActiveRemainsCountFromCrypt(crypt: Crypt) {
-  const remains = crypt.cryptRemains ?? [];
+  const remains = crypt.cryptRemains  ?? [];
 
   return remains.filter((remain) => remain?.isActive ?? true).length;
 }
@@ -193,6 +193,9 @@ function CryptsPage() {
   const [remainModalError, setRemainModalError] = useState("");
   const [confirmingRemainCreation, setConfirmingRemainCreation] =
     useState(false);
+  const [remainToDelete, setRemainToDelete] = useState<CryptRemain | null>(
+    null
+  );
 
   const [cryptToCancelPurchase, setCryptToCancelPurchase] =
     useState<Crypt | null>(null);
@@ -217,6 +220,7 @@ function CryptsPage() {
   const [savingSale, setSavingSale] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
   const [savingRemain, setSavingRemain] = useState(false);
+  const [deletingRemain, setDeletingRemain] = useState(false);
   const [cancelingPurchase, setCancelingPurchase] = useState(false);
 
   const [pageMessage, setPageMessage] = useState("");
@@ -229,6 +233,7 @@ function CryptsPage() {
     savingSale ||
     savingPayment ||
     savingRemain ||
+    deletingRemain ||
     cancelingPurchase ||
     openingDetail;
   const isPageLoading = loading || (clientsLoading && clients.length === 0);
@@ -975,6 +980,40 @@ function CryptsPage() {
     }
   };
 
+  const handleRequestDeleteRemain = (remain: CryptRemain) => {
+    if (!remain.id || deletingRemain) return;
+
+    clearPageMessages();
+    setRemainToDelete(remain);
+  };
+
+  const handleConfirmDeleteRemain = async () => {
+    if (!remainToDelete?.id || deletingRemain) return;
+
+    try {
+      setDeletingRemain(true);
+      clearPageMessages();
+
+      await apiService.cryptRemains.deactivate(remainToDelete.id);
+
+      const cryptId = remainToDelete.cryptId;
+
+      setRemainToDelete(null);
+      setPageMessage("Resto eliminado correctamente.");
+
+      await loadCrypts();
+
+      if (selectedCryptForDetail?.id === cryptId) {
+        await refreshDetailRemains(cryptId);
+      }
+    } catch (err) {
+      console.error("Error deleting crypt remain:", err);
+      setPageError(getApiErrorMessage(err, "No se pudo eliminar el resto."));
+    } finally {
+      setDeletingRemain(false);
+    }
+  };
+
   const handleCancelPurchase = async (crypt: Crypt) => {
     if (!crypt.id || cancelingPurchase) return;
 
@@ -1343,6 +1382,7 @@ function CryptsPage() {
               setPendingCryptUpdate(null);
             }}
             onSaveEdit={handleRequestUpdateCryptDetails}
+            onDeleteRemain={handleRequestDeleteRemain}
           />
         )}
       </Modal>
@@ -1471,6 +1511,23 @@ function CryptsPage() {
         onCancel={() => {
           if (!savingRemain) {
             setConfirmingRemainCreation(false);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={remainToDelete !== null}
+        title="Eliminar resto"
+        message={`¿Seguro que quieres eliminar el resto "${
+          remainToDelete?.deceasedName?.trim() || "seleccionado"
+        }"?`}
+        confirmLabel="Eliminar resto"
+        confirmClassName="btn-danger"
+        confirming={deletingRemain}
+        onConfirm={handleConfirmDeleteRemain}
+        onCancel={() => {
+          if (!deletingRemain) {
+            setRemainToDelete(null);
           }
         }}
       />

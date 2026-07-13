@@ -39,6 +39,7 @@ type CryptDetailProps = {
   onEdit: () => void;
   onCancelEdit: () => void;
   onSaveEdit: (details: EditableCryptDetails) => void;
+  onDeleteRemain: (remain: CryptRemain) => void;
 };
 
 type DetailEditForm = {
@@ -187,6 +188,7 @@ function CryptDetail({
   onEdit,
   onCancelEdit,
   onSaveEdit,
+  onDeleteRemain,
 }: CryptDetailProps) {
   const [editForm, setEditForm] = useState<DetailEditForm>(() =>
     getInitialEditForm(crypt)
@@ -692,10 +694,21 @@ function CryptDetail({
           <div className="remains-grid">
             {activeRemains.map((remain, index) => (
               <div className="remain-item" key={remain.id ?? index}>
-                <span>Nombre</span>
-                <strong>{remain.deceasedName?.trim() || "-"}</strong>
+                <div>
+                  <span>Nombre</span>
+                  <strong>{remain.deceasedName?.trim() || "-"}</strong>
 
-                <small>Registrado: {formatDate(remain.createdAt)}</small>
+                  <small>Registrado: {formatDate(remain.createdAt)}</small>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-danger btn-remain-delete"
+                  onClick={() => onDeleteRemain(remain)}
+                  disabled={!remain.id}
+                >
+                  Eliminar
+                </button>
               </div>
             ))}
           </div>

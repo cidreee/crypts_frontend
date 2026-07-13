@@ -721,6 +721,10 @@
 }
 
 .remain-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
   min-width: 0;
   padding: 0.85rem;
   background: var(--surface);
@@ -751,6 +755,12 @@
   margin-top: 0.55rem;
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.btn-remain-delete {
+  min-height: 34px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.84rem;
 }
 
 @media (max-width: 900px) {
@@ -830,6 +840,14 @@
   }
 
   .detail-toolbar button {
+    width: 100%;
+  }
+
+  .remain-item {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-remain-delete {
     width: 100%;
   }
 
