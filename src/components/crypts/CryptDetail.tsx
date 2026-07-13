@@ -198,6 +198,7 @@ function CryptDetail({
     ? formatClientName(crypt.client)
     : "Sin cliente";
   const currentClientId = crypt.clientId ?? crypt.client?.id ?? null;
+  const canEditSaleDetails = Boolean(currentClientId);
   const beneficiaryOptions = clients.filter(
     (client) => client.id !== currentClientId
   );
@@ -287,6 +288,23 @@ function CryptDetail({
   };
 
   const handleSaveEdit = () => {
+    const cost = Number(editForm.cost);
+
+    if (!Number.isFinite(cost) || cost <= 0) {
+      setEditFormError("El costo de la cripta debe ser mayor a 0.");
+      return;
+    }
+
+    if (!canEditSaleDetails) {
+      onSaveEdit({
+        beneficiaryId: crypt.beneficiaryId ?? null,
+        title: crypt.title ?? null,
+        plateText: crypt.plateText ?? null,
+        cost,
+      });
+      return;
+    }
+
     if (editForm.beneficiaryMode === "existing") {
       const beneficiaryId = Number(editForm.beneficiaryId);
 
@@ -333,10 +351,8 @@ function CryptDetail({
       }
     }
 
-    const cost = Number(editForm.cost);
-
-    if (!Number.isFinite(cost) || cost <= 0) {
-      setEditFormError("El costo de la cripta debe ser mayor a 0.");
+    if (!editForm.plateText.trim()) {
+      setEditFormError("El texto de placa es obligatorio.");
       return;
     }
 
@@ -422,6 +438,12 @@ function CryptDetail({
           <h3>Venta y documentos</h3>
         </div>
 
+        {editing && !canEditSaleDetails && (
+          <p className="empty-message">
+            Esta cripta no tiene cliente asignado. Solo se puede editar el costo.
+          </p>
+        )}
+
         {editing && editFormError && (
           <p className="error-message">{editFormError}</p>
         )}
@@ -435,9 +457,13 @@ function CryptDetail({
             inactive={editing}
           />
 
-          <div className={`detail-item ${editing ? "detail-item-editable" : ""}`}>
+          <div
+            className={`detail-item ${
+              editing && canEditSaleDetails ? "detail-item-editable" : ""
+            }`}
+          >
             <span>Beneficiario</span>
-            {editing ? (
+            {editing && canEditSaleDetails ? (
               <div className="nested-edit-fields">
                 <select
                   name="beneficiaryMode"
@@ -582,9 +608,13 @@ function CryptDetail({
             inactive={editing}
           />
 
-          <div className={`detail-item ${editing ? "detail-item-editable" : ""}`}>
+          <div
+            className={`detail-item ${
+              editing && canEditSaleDetails ? "detail-item-editable" : ""
+            }`}
+          >
             <span>Número de título</span>
-            {editing ? (
+            {editing && canEditSaleDetails ? (
               <input
                 type="text"
                 name="title"
@@ -605,11 +635,15 @@ function CryptDetail({
             )}
           </div>
 
-          <div className={`detail-item ${editing ? "detail-item-editable" : ""}`}>
+          <div
+            className={`detail-item ${
+              editing && canEditSaleDetails ? "detail-item-editable" : ""
+            }`}
+          >
             <span>
-              Texto de placa {editing && <RequiredMark />}
+              Texto de placa {editing && canEditSaleDetails && <RequiredMark />}
             </span>
-            {editing ? (
+            {editing && canEditSaleDetails ? (
               <input
                 type="text"
                 name="plateText"
