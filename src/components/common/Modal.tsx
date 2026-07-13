@@ -7,6 +7,7 @@ type ModalProps = {
   onClose: () => void;
   closeDisabled?: boolean;
   size?: "default" | "wide";
+  motion?: "default" | "none";
 };
 
 function Modal({
@@ -16,14 +17,23 @@ function Modal({
   onClose,
   closeDisabled = false,
   size = "default",
+  motion = "none",
 }: ModalProps) {
   if (!isOpen) {
     return null;
   }
 
   return (
-    <div className="modal-overlay">
-      <div className={`modal-card ${size === "wide" ? "modal-card-wide" : ""}`}>
+    <div
+      className={`modal-overlay ${
+        motion === "none" ? "modal-overlay-static" : ""
+      }`}
+    >
+      <div
+        className={`modal-card ${size === "wide" ? "modal-card-wide" : ""} ${
+          motion === "none" ? "modal-card-static" : ""
+        }`}
+      >
         <div className="modal-header">
           <h2>{title}</h2>
 

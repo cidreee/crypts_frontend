@@ -1,6 +1,7 @@
 ﻿// src/pages/CryptsPage.tsx
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useCrypts } from "../hooks/useCrypts";
 import { apiService } from "../services/apiService";
 import type { Crypt, CryptPayload } from "../types/crypt";
@@ -8,14 +9,19 @@ import type { CryptRemain } from "../types/cryptRemain";
 import type { Payment, PaymentPayload } from "../types/payment";
 import type { Client, ClientPayload } from "../types/client";
 import CryptTable from "../components/crypts/CryptTable";
-import CryptDetail from "../components/crypts/CryptDetail";
+import CryptDetail, {
+  type EditableCryptDetails,
+} from "../components/crypts/CryptDetail";
 import SaleForm, { type SaleDetails } from "../components/crypts/SaleForm";
 import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
 import ConfirmModal from "../components/common/ConfirmModal";
+import ToastMessage from "../components/common/ToastMessage";
+import PageLoader from "../components/common/PageLoader";
 import { getApiErrorMessage } from "../utils/apiError";
 import { getBackendDateTime } from "../utils/date";
 import { formatCurrency } from "../utils/format";
+import { getEffectiveCryptBalanceDue } from "../utils/cryptOwnership";
 
 type AvailabilityFilter = "all" | "available" | "occupied";
 type PaymentStatusFilter = "all" | "no-payment" | "paying" | "completed";
@@ -34,6 +40,36 @@ type SortColumn =
   | "purchaseDate"
   | "paymentStatus";
 type SortDirection = "asc" | "desc";
+type PendingCryptUpdate = CryptPayload & {
+  beneficiary?: ClientPayload;
+};
+
+const availabilityFilterValues: AvailabilityFilter[] = [
+  "all",
+  "available",
+  "occupied",
+];
+const paymentStatusFilterValues: PaymentStatusFilter[] = [
+  "all",
+  "no-payment",
+  "paying",
+  "completed",
+];
+const presenceFilterValues: PresenceFilter[] = ["all", "yes", "no"];
+const sortColumnValues: SortColumn[] = [
+  "cryptCode",
+  "title",
+  "client",
+  "beneficiary",
+  "remains",
+  "plateText",
+  "cost",
+  "totalPaid",
+  "balanceDue",
+  "paymentsCount",
+  "purchaseDate",
+  "paymentStatus",
+];
 
 function getCryptPaymentStatus(
   crypt: Crypt
@@ -41,7 +77,7 @@ function getCryptPaymentStatus(
   if (crypt.isAvailable) return null;
   
   const totalPaid = crypt.balance?.totalPaid ?? 0;
-  const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+  const balanceDue = getEffectiveCryptBalanceDue(crypt);
 
   if (totalPaid <= 0) return "no-payment";
   if (balanceDue > 0) return "paying";
@@ -55,12 +91,36 @@ function getClientName(client: Crypt["client"] | Crypt["beneficiary"]) {
   return `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
 }
 
+function getClientSearchText(client: Crypt["client"] | Crypt["beneficiary"]) {
+  if (!client) return "";
+
+  return [
+    client.firstName,
+    client.lastName,
+    client.phoneNumber,
+    client.alternatePhoneNumber,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 function getCryptCode(crypt: Crypt) {
   return `${crypt.section}-${crypt.letter}-${crypt.number}`;
 }
 
+function normalizeCryptCodeSearch(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 function getComparableDate(value?: string | null) {
   return getBackendDateTime(value);
+}
+
+function getActiveRemainsCountFromCrypt(crypt: Crypt) {
+  const remains = crypt.cryptRemains ?? [];
+
+  return remains.filter((remain) => remain?.isActive ?? true).length;
 }
 
 function getDateInputTime(value: string, boundary: "start" | "end") {
@@ -100,25 +160,25 @@ function compareValues(
 
 function CryptsPage() {
   const { crypts, loading, error, loadCrypts } = useCrypts();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
-  const [cryptRemains, setCryptRemains] = useState<CryptRemain[]>([]);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
 
   const [selectedCryptForDetail, setSelectedCryptForDetail] =
     useState<Crypt | null>(null);
   const [editingDetailCrypt, setEditingDetailCrypt] = useState(false);
   const [pendingCryptUpdate, setPendingCryptUpdate] =
-    useState<CryptPayload | null>(null);
+    useState<PendingCryptUpdate | null>(null);
   const [detailPayments, setDetailPayments] = useState<Payment[]>([]);
   const [detailPaymentsLoading, setDetailPaymentsLoading] = useState(false);
   const [detailPaymentsError, setDetailPaymentsError] = useState("");
   const [detailRemains, setDetailRemains] = useState<CryptRemain[]>([]);
   const [detailRemainsLoading, setDetailRemainsLoading] = useState(false);
   const [detailRemainsError, setDetailRemainsError] = useState("");
-  const [purchaseDateByCryptId, setPurchaseDateByCryptId] = useState<
-    Record<number, string>
-  >({});
+  const [openingDetail, setOpeningDetail] = useState(false);
 
   const [selectedCryptForSale, setSelectedCryptForSale] =
     useState<Crypt | null>(null);
@@ -149,6 +209,7 @@ function CryptsPage() {
     useState<PresenceFilter>("all");
   const [titleFilter, setTitleFilter] = useState<PresenceFilter>("all");
   const [plateFilter, setPlateFilter] = useState<PresenceFilter>("all");
+  const [debtOnlyFilter, setDebtOnlyFilter] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn>("cryptCode");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -161,13 +222,17 @@ function CryptsPage() {
   const [pageMessage, setPageMessage] = useState("");
   const [pageError, setPageError] = useState("");
   const [paymentModalError, setPaymentModalError] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const isBusy =
     savingCrypt ||
     savingSale ||
     savingPayment ||
     savingRemain ||
-    cancelingPurchase;
+    cancelingPurchase ||
+    openingDetail;
+  const isPageLoading = loading || (clientsLoading && clients.length === 0);
+  const searchParamsKey = searchParams.toString();
 
   const validCrypts = useMemo(() => {
     return crypts.filter(
@@ -176,18 +241,16 @@ function CryptsPage() {
   }, [crypts]);
 
   const activeRemainsCountByCryptId = useMemo(() => {
-    return cryptRemains.reduce<Record<number, number>>((counts, remain) => {
-      if (remain.cryptId == null || remain.isActive !== true) {
-        return counts;
-      }
+    return validCrypts.reduce<Record<number, number>>((counts, crypt) => {
+      if (!crypt.id) return counts;
 
-      counts[remain.cryptId] = (counts[remain.cryptId] ?? 0) + 1;
+      counts[crypt.id] = getActiveRemainsCountFromCrypt(crypt);
 
       return counts;
     }, {});
-  }, [cryptRemains]);
+  }, [validCrypts]);
 
-  const loadClients = useCallback(async () => {
+  const loadClients = useCallback(async (): Promise<Client[]> => {
     try {
       setClientsLoading(true);
 
@@ -201,54 +264,96 @@ function CryptsPage() {
         : [];
 
       setClients(safeClients);
+      setClientsLoaded(true);
+      return safeClients;
     } catch (err) {
       console.error("Error loading clients:", err);
       setPageError(
         getApiErrorMessage(err, "No se pudieron cargar los clientes.")
       );
       setClients([]);
+      setClientsLoaded(false);
+      return [];
     } finally {
       setClientsLoading(false);
     }
   }, []);
 
-  const loadCryptRemains = useCallback(async () => {
-    try {
-      const remains = await apiService.cryptRemains.getAll();
+  const ensureClientsLoaded = useCallback(async () => {
+    if (clientsLoaded) return clients;
 
-      setCryptRemains(Array.isArray(remains) ? remains : []);
-    } catch (err) {
-      console.error("Error loading crypt remains:", err);
-      setPageError(
-        getApiErrorMessage(err, "No se pudieron cargar los restos de criptas.")
-      );
-      setCryptRemains([]);
+    return loadClients();
+  }, [clients, clientsLoaded, loadClients]);
+
+  useEffect(() => {
+    const currentSearchParams = new URLSearchParams(searchParamsKey);
+    const availabilityParam = currentSearchParams.get("availability");
+    const paymentStatusParam = currentSearchParams.get("paymentStatus");
+    const beneficiaryParam = currentSearchParams.get("beneficiary");
+    const titleParam = currentSearchParams.get("title");
+    const plateParam = currentSearchParams.get("plate");
+    const sortParam = currentSearchParams.get("sort");
+    const directionParam = currentSearchParams.get("direction");
+    const searchParam = currentSearchParams.get("search");
+    const focusSearchParam = currentSearchParams.get("focusSearch");
+
+    setSearchTerm(searchParam ?? "");
+    setAvailabilityFilter(
+      availabilityFilterValues.includes(availabilityParam as AvailabilityFilter)
+        ? (availabilityParam as AvailabilityFilter)
+        : "all"
+    );
+    setPaymentStatusFilter(
+      paymentStatusFilterValues.includes(
+        paymentStatusParam as PaymentStatusFilter
+      )
+        ? (paymentStatusParam as PaymentStatusFilter)
+        : "all"
+    );
+    setBeneficiaryFilter(
+      presenceFilterValues.includes(beneficiaryParam as PresenceFilter)
+        ? (beneficiaryParam as PresenceFilter)
+        : "all"
+    );
+    setTitleFilter(
+      presenceFilterValues.includes(titleParam as PresenceFilter)
+        ? (titleParam as PresenceFilter)
+        : "all"
+    );
+    setPlateFilter(
+      presenceFilterValues.includes(plateParam as PresenceFilter)
+        ? (plateParam as PresenceFilter)
+        : "all"
+    );
+    setDebtOnlyFilter(currentSearchParams.get("debt") === "due");
+    setSortColumn(
+      sortColumnValues.includes(sortParam as SortColumn)
+        ? (sortParam as SortColumn)
+        : "cryptCode"
+    );
+    setSortDirection(directionParam === "desc" ? "desc" : "asc");
+    setSectionFilter("all");
+    setPurchaseDateFrom("");
+    setPurchaseDateTo("");
+
+    if (focusSearchParam === "1") {
+      window.setTimeout(() => searchInputRef.current?.focus(), 0);
     }
-  }, []);
 
-  useEffect(() => {
-    loadClients();
-  }, [loadClients]);
-
-  useEffect(() => {
-    loadCryptRemains();
-  }, [loadCryptRemains]);
+    if (searchParamsKey) {
+      setFiltersOpen(true);
+    }
+  }, [searchParamsKey]);
 
   const filteredCrypts = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
+    const normalizedCryptCodeSearch =
+      normalizeCryptCodeSearch(normalizedSearch);
     const purchaseFromTime = getDateInputTime(purchaseDateFrom, "start");
     const purchaseToTime = getDateInputTime(purchaseDateTo, "end");
 
-    const getPurchaseDate = (crypt: Crypt) => {
-      return crypt.id ? purchaseDateByCryptId[crypt.id] ?? crypt.purchasedAt : crypt.purchasedAt;
-    };
-
     const getBeneficiaryClient = (crypt: Crypt) => {
-      return (
-        crypt.beneficiary ??
-        clients.find((client) => client.id === crypt.beneficiaryId) ??
-        null
-      );
+      return crypt.beneficiary ?? null;
     };
 
     const getSortValue = (crypt: Crypt): string | number | null => {
@@ -272,11 +377,11 @@ function CryptsPage() {
         case "totalPaid":
           return crypt.balance?.totalPaid ?? 0;
         case "balanceDue":
-          return crypt.balance?.balanceDue ?? crypt.cost ?? 0;
+          return getEffectiveCryptBalanceDue(crypt);
         case "paymentsCount":
           return crypt.balance?.paymentsCount ?? 0;
         case "purchaseDate":
-          return getComparableDate(getPurchaseDate(crypt));
+          return getComparableDate(crypt.purchasedAt);
         case "paymentStatus": {
           const paymentStatusOrder: Record<
             Exclude<PaymentStatusFilter, "all">,
@@ -301,21 +406,28 @@ function CryptsPage() {
       const number = crypt.number?.toLowerCase() ?? "";
 
       const cryptCode = getCryptCode(crypt).toLowerCase();
+      const searchableCryptCode = normalizeCryptCodeSearch(cryptCode);
 
-      const clientName = getClientName(crypt.client).toLowerCase();
       const beneficiaryClient = getBeneficiaryClient(crypt);
+      const clientName = getClientName(crypt.client).toLowerCase();
+      const clientSearchText = getClientSearchText(crypt.client);
+      const beneficiarySearchText = getClientSearchText(beneficiaryClient);
       const hasBeneficiary = Boolean(crypt.beneficiaryId || beneficiaryClient);
       const hasTitle = Boolean(crypt.title?.trim());
       const hasPlate = Boolean(crypt.plateText?.trim());
-      const purchaseDateTime = getComparableDate(getPurchaseDate(crypt));
+      const purchaseDateTime = getComparableDate(crypt.purchasedAt);
 
       const matchesSearch =
         normalizedSearch === "" ||
         cryptCode.includes(normalizedSearch) ||
+        (normalizedCryptCodeSearch !== "" &&
+          searchableCryptCode.includes(normalizedCryptCodeSearch)) ||
         section.includes(normalizedSearch) ||
         letter.includes(normalizedSearch) ||
         number.includes(normalizedSearch) ||
-        clientName.includes(normalizedSearch);
+        clientName.includes(normalizedSearch) ||
+        clientSearchText.includes(normalizedSearch) ||
+        beneficiarySearchText.includes(normalizedSearch);
 
       const isAvailable = Boolean(crypt.isAvailable);
       const matchesSection =
@@ -325,6 +437,10 @@ function CryptsPage() {
         availabilityFilter === "all" ||
         (availabilityFilter === "available" && isAvailable) ||
         (availabilityFilter === "occupied" && !isAvailable);
+
+      const matchesDebtOnly =
+        !debtOnlyFilter ||
+        (!isAvailable && getEffectiveCryptBalanceDue(crypt) > 0);
 
       const matchesPaymentStatus =
         paymentStatusFilter === "all" ||
@@ -351,6 +467,7 @@ function CryptsPage() {
         matchesSearch &&
         matchesSection &&
         matchesAvailability &&
+        matchesDebtOnly &&
         matchesPaymentStatus &&
         matchesPurchaseDateFrom &&
         matchesPurchaseDateTo &&
@@ -367,11 +484,11 @@ function CryptsPage() {
     });
   }, [
     validCrypts,
-    clients,
     searchTerm,
     sectionFilter,
     availabilityFilter,
     paymentStatusFilter,
+    debtOnlyFilter,
     purchaseDateFrom,
     purchaseDateTo,
     beneficiaryFilter,
@@ -379,7 +496,6 @@ function CryptsPage() {
     plateFilter,
     sortColumn,
     sortDirection,
-    purchaseDateByCryptId,
     activeRemainsCountByCryptId,
   ]);
 
@@ -403,7 +519,7 @@ function CryptsPage() {
     const soldCrypts = validCrypts.filter((crypt) => !crypt.isAvailable);
 
     const totalAmount = soldCrypts.reduce((sum, crypt) => {
-      return sum + (crypt.balance?.totalAmount ?? crypt.cost ?? 0);
+      return sum + (crypt.cost ?? 0);
     }, 0);
 
     const totalPaid = soldCrypts.reduce((sum, crypt) => {
@@ -411,7 +527,7 @@ function CryptsPage() {
     }, 0);
 
     const totalBalanceDue = soldCrypts.reduce((sum, crypt) => {
-      return sum + (crypt.balance?.balanceDue ?? 0);
+      return sum + getEffectiveCryptBalanceDue(crypt);
     }, 0);
 
     return {
@@ -429,15 +545,24 @@ function CryptsPage() {
     setPageMessage("");
   };
 
-  const getCryptClientId = (crypt: Crypt) => {
-    return crypt.clientId ?? crypt.client?.id;
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSectionFilter("all");
+    setAvailabilityFilter("all");
+    setPaymentStatusFilter("all");
+    setPurchaseDateFrom("");
+    setPurchaseDateTo("");
+    setBeneficiaryFilter("all");
+    setTitleFilter("all");
+    setPlateFilter("all");
+    setDebtOnlyFilter(false);
+    setSortColumn("cryptCode");
+    setSortDirection("asc");
+    setSearchParams({});
   };
 
-  const getFirstPaymentDate = (payments: Payment[]) => {
-    return payments
-      .filter((payment) => payment.paymentDate)
-      .map((payment) => payment.paymentDate)
-      .sort()[0];
+  const getCryptClientId = (crypt: Crypt) => {
+    return crypt.clientId ?? crypt.client?.id;
   };
 
   const getActiveRemains = (remains: CryptRemain[]) => {
@@ -455,172 +580,95 @@ function CryptsPage() {
     return safeRemains;
   }, [selectedCryptForDetail?.id]);
 
-  useEffect(() => {
-    const cryptsToLoad = validCrypts.filter((crypt) => {
-      const cryptId = crypt.id;
-      const paymentsCount = crypt.balance?.paymentsCount ?? 0;
-
-      return (
-        cryptId &&
-        paymentsCount > 0 &&
-        !purchaseDateByCryptId[cryptId]
-      );
-    });
-
-    if (cryptsToLoad.length === 0) return;
-
-    let isCurrent = true;
-
-    Promise.all(
-      cryptsToLoad.map(async (crypt) => {
-        const cryptId = crypt.id as number;
-        const payments = await apiService.payments.getHistory(undefined, cryptId);
-
-        return [cryptId, getFirstPaymentDate(payments)] as const;
-      })
-    )
-      .then((entries) => {
-        if (!isCurrent) return;
-
-        setPurchaseDateByCryptId((prev) => {
-          const next = { ...prev };
-
-          entries.forEach(([cryptId, purchaseDate]) => {
-            if (purchaseDate) {
-              next[cryptId] = purchaseDate;
-            }
-          });
-
-          return next;
-        });
-      })
-      .catch((err) => {
-        console.error("Error loading crypt purchase dates:", err);
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [validCrypts, purchaseDateByCryptId]);
-
-  useEffect(() => {
-    if (!selectedCryptForDetail?.id) {
-      setDetailPayments([]);
-      setDetailPaymentsError("");
-      return;
-    }
-
-    let isCurrent = true;
-
-    const loadDetailPayments = async () => {
-      try {
-        setDetailPaymentsLoading(true);
-        setDetailPaymentsError("");
-
-        const payments = await apiService.payments.getHistory(
-          undefined,
-          selectedCryptForDetail.id as number
-        );
-
-        if (!isCurrent) return;
-
-        setDetailPayments(payments);
-
-        const purchaseDate = getFirstPaymentDate(payments);
-
-        if (purchaseDate) {
-          setPurchaseDateByCryptId((prev) => ({
-            ...prev,
-            [selectedCryptForDetail.id as number]: purchaseDate,
-          }));
-        }
-      } catch (err) {
-        console.error("Error loading crypt payments:", err);
-
-        if (isCurrent) {
-          setDetailPayments([]);
-          setDetailPaymentsError(
-            getApiErrorMessage(err, "No se pudieron cargar los pagos.")
-          );
-        }
-      } finally {
-        if (isCurrent) {
-          setDetailPaymentsLoading(false);
-        }
-      }
-    };
-
-    loadDetailPayments();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [selectedCryptForDetail]);
-
-  useEffect(() => {
-    if (!selectedCryptForDetail?.id) {
-      setDetailRemains([]);
-      setDetailRemainsError("");
-      return;
-    }
-
-    let isCurrent = true;
-
-    const loadDetailRemains = async () => {
-      try {
-        setDetailRemainsLoading(true);
-        setDetailRemainsError("");
-
-        const remains = await refreshDetailRemains(
-          selectedCryptForDetail.id as number
-        );
-
-        if (!isCurrent) return;
-
-        setDetailRemains(remains);
-      } catch (err) {
-        console.error("Error loading crypt remains:", err);
-
-        if (isCurrent) {
-          setDetailRemains([]);
-          setDetailRemainsError(
-            getApiErrorMessage(err, "No se pudieron cargar los restos.")
-          );
-        }
-      } finally {
-        if (isCurrent) {
-          setDetailRemainsLoading(false);
-        }
-      }
-    };
-
-    loadDetailRemains();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [selectedCryptForDetail, refreshDetailRemains]);
-
-  const handleViewCryptDetails = (crypt: Crypt) => {
+  const handleViewCryptDetails = async (crypt: Crypt) => {
     clearPageMessages();
     setEditingDetailCrypt(false);
-    setSelectedCryptForDetail(crypt);
+    setDetailPayments([]);
+    setDetailRemains([]);
+    setDetailPaymentsError("");
+    setDetailRemainsError("");
+
+    if (!crypt.id) {
+      setSelectedCryptForDetail(crypt);
+      return;
+    }
+
+    try {
+      setOpeningDetail(true);
+      setDetailPaymentsLoading(true);
+      setDetailRemainsLoading(true);
+
+      const [payments, remains] = await Promise.all([
+        apiService.payments.getHistory(undefined, crypt.id),
+        apiService.cryptRemains.getByCryptId(crypt.id),
+        ensureClientsLoaded(),
+      ]);
+
+      setDetailPayments(Array.isArray(payments) ? payments : []);
+      setDetailRemains(Array.isArray(remains) ? remains : []);
+    } catch (err) {
+      console.error("Error loading crypt detail:", err);
+      setDetailPayments([]);
+      setDetailRemains([]);
+      setDetailPaymentsError(
+        getApiErrorMessage(err, "No se pudieron cargar los pagos.")
+      );
+      setDetailRemainsError(
+        getApiErrorMessage(err, "No se pudieron cargar los restos.")
+      );
+    } finally {
+      setDetailPaymentsLoading(false);
+      setDetailRemainsLoading(false);
+      setOpeningDetail(false);
+      setSelectedCryptForDetail(crypt);
+    }
   };
 
-  const handleUpdateCrypt = async (crypt: CryptPayload) => {
+  const handleUpdateCrypt = async (crypt: PendingCryptUpdate) => {
     if (!crypt.id || savingCrypt) return;
 
     try {
       setSavingCrypt(true);
       clearPageMessages();
 
-      await apiService.crypts.update(crypt.id, crypt);
+      let beneficiaryId = crypt.beneficiaryId ?? null;
+
+      if (crypt.beneficiary) {
+        const createdBeneficiary = await apiService.clients.create(
+          crypt.beneficiary
+        );
+
+        if (!createdBeneficiary.id) {
+          throw new Error("No se pudo identificar el beneficiario creado.");
+        }
+
+        beneficiaryId = createdBeneficiary.id;
+      }
+
+      const cryptPayload: CryptPayload = {
+        id: crypt.id,
+        clientId: crypt.clientId,
+        beneficiaryId,
+        saleCryptStatusId: crypt.saleCryptStatusId,
+        title: crypt.title,
+        plateText: crypt.plateText,
+        isAvailable: crypt.isAvailable,
+        purchasedAt: crypt.purchasedAt,
+        createdAt: crypt.createdAt,
+        cost: crypt.cost,
+        section: crypt.section,
+        letter: crypt.letter,
+        number: crypt.number,
+      };
+
+      await apiService.crypts.update(crypt.id, cryptPayload);
 
       setPageMessage("Cripta actualizada correctamente.");
 
       await loadCrypts();
+      setClientsLoaded(false);
       setSelectedCryptForDetail((prev) =>
-        prev?.id === crypt.id ? { ...prev, ...crypt } : prev
+        prev?.id === crypt.id ? { ...prev, ...cryptPayload, beneficiaryId } : prev
       );
       setEditingDetailCrypt(false);
       setPendingCryptUpdate(null);
@@ -645,6 +693,7 @@ function CryptsPage() {
       return;
     }
 
+    void ensureClientsLoaded();
     setSelectedCryptForSale(crypt);
   };
 
@@ -705,6 +754,8 @@ function CryptsPage() {
           beneficiaryId,
           saleCryptStatusId: assignedCrypt.saleCryptStatusId ?? null,
           isAvailable: assignedCrypt.isAvailable ?? false,
+          purchasedAt:
+            assignedCrypt.purchasedAt ?? selectedCryptForSale.purchasedAt ?? null,
           createdAt: assignedCrypt.createdAt,
           section: assignedCrypt.section,
           letter: assignedCrypt.letter,
@@ -727,7 +778,7 @@ function CryptsPage() {
       setPageMessage("Venta registrada correctamente.");
 
       await loadCrypts();
-      await loadClients();
+      setClientsLoaded(false);
     } catch (err) {
       console.error("Error creating sale:", err);
       setPageError(getApiErrorMessage(err, "No se pudo registrar la venta."));
@@ -750,7 +801,7 @@ function CryptsPage() {
       return;
     }
 
-    const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+    const balanceDue = getEffectiveCryptBalanceDue(crypt);
 
     if (balanceDue <= 0) {
       setPageError("Esta cripta ya está liquidada.");
@@ -760,9 +811,7 @@ function CryptsPage() {
     setSelectedCryptForPayment(crypt);
   };
 
-  const handleRequestUpdateCryptDetails = (
-    details: Pick<CryptPayload, "beneficiaryId" | "title" | "plateText">
-  ) => {
+  const handleRequestUpdateCryptDetails = (details: EditableCryptDetails) => {
     if (!selectedCryptForDetail?.id) return;
 
     setPendingCryptUpdate({
@@ -772,13 +821,15 @@ function CryptsPage() {
       beneficiaryId: details.beneficiaryId ?? null,
       saleCryptStatusId: selectedCryptForDetail.saleCryptStatusId ?? null,
       isAvailable: selectedCryptForDetail.isAvailable ?? true,
+      purchasedAt: selectedCryptForDetail.purchasedAt ?? null,
       createdAt: selectedCryptForDetail.createdAt,
       section: selectedCryptForDetail.section,
       letter: selectedCryptForDetail.letter,
       number: selectedCryptForDetail.number,
-      cost: selectedCryptForDetail.cost,
+      cost: details.cost ?? selectedCryptForDetail.cost,
       title: details.title ?? null,
       plateText: details.plateText ?? null,
+      beneficiary: details.beneficiary,
     });
   };
 
@@ -838,7 +889,6 @@ function CryptsPage() {
       setPageMessage("Pago registrado correctamente.");
 
       await loadCrypts();
-      await loadClients();
     } catch (err) {
       console.error("Error creating payment:", err);
 
@@ -907,9 +957,8 @@ function CryptsPage() {
         createdAt: new Date().toISOString(),
       });
 
-      await refreshDetailRemains(selectedCryptForRemain.id);
-      await loadCryptRemains();
       await loadCrypts();
+      await refreshDetailRemains(selectedCryptForRemain.id);
 
       setSelectedCryptForRemain(null);
       setRemainName("");
@@ -951,7 +1000,6 @@ function CryptsPage() {
       setPageMessage("Compra cancelada correctamente.");
 
       await loadCrypts();
-      await loadClients();
     } catch (err) {
       console.error("Error canceling purchase:", err);
       setPageError(getApiErrorMessage(err, "No se pudo cancelar la compra."));
@@ -995,7 +1043,14 @@ function CryptsPage() {
   };
 
   return (
-    <section className="page-container">
+    <>
+      <PageLoader
+        visible={isPageLoading}
+        message="Cargando criptas..."
+      />
+      <section
+        className={`page-container ${isPageLoading ? "page-content-loading" : ""}`}
+      >
       <div className="page-header">
         <div>
           <h1>Criptas</h1>
@@ -1003,9 +1058,19 @@ function CryptsPage() {
         </div>
       </div>
 
-      {error && <p className="error-message">{error}</p>}
-      {pageError && <p className="error-message">{pageError}</p>}
-      {pageMessage && <p className="success-message">{pageMessage}</p>}
+      <div className="toast-stack">
+        <ToastMessage type="error" message={error} />
+        <ToastMessage
+          type="error"
+          message={pageError}
+          onClose={() => setPageError("")}
+        />
+        <ToastMessage
+          type="success"
+          message={pageMessage}
+          onClose={() => setPageMessage("")}
+        />
+      </div>
 
       <div className="summary-container">
         <div className="summary-card">
@@ -1039,18 +1104,34 @@ function CryptsPage() {
         </div>
       </div>
 
-      <details className="filters-panel" open>
+      <details
+        className="filters-panel"
+        open={filtersOpen}
+        onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+      >
         <summary>
           <span>Filtros</span>
           <strong>{filteredCrypts.length} resultados</strong>
         </summary>
 
+        <div className="filters-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleClearFilters}
+            disabled={isBusy}
+          >
+            Limpiar filtros
+          </button>
+        </div>
+
         <div className="filters-container">
           <div className="form-group filter-search">
             <label>Buscar</label>
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Buscar por cripta o cliente..."
+              placeholder="Buscar por cripta, cliente, beneficiario o teléfono..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               disabled={isBusy}
@@ -1228,9 +1309,6 @@ function CryptsPage() {
         <CryptTable
           crypts={filteredCrypts}
           activeRemainsCountByCryptId={activeRemainsCountByCryptId}
-          getPurchaseDate={(crypt) =>
-            crypt.id ? purchaseDateByCryptId[crypt.id] : undefined
-          }
           onViewDetails={handleViewCryptDetails}
           onRegisterSale={handleRegisterSale}
           onRegisterPayment={handleRegisterPayment}
@@ -1258,11 +1336,7 @@ function CryptsPage() {
             paymentsError={detailPaymentsError}
             loadingRemains={detailRemainsLoading}
             remainsError={detailRemainsError}
-            purchaseDate={
-              selectedCryptForDetail.id
-                ? purchaseDateByCryptId[selectedCryptForDetail.id]
-                : undefined
-            }
+            purchaseDate={selectedCryptForDetail.purchasedAt ?? undefined}
             onEdit={() => setEditingDetailCrypt(true)}
             onCancelEdit={() => {
               setEditingDetailCrypt(false);
@@ -1284,9 +1358,8 @@ function CryptsPage() {
             clients={clients.filter((client) => client.isActive)}
             saving={savingSale}
             maxInitialPayment={
-              selectedCryptForSale.balance?.balanceDue &&
-              selectedCryptForSale.balance.balanceDue > 0
-                ? selectedCryptForSale.balance.balanceDue
+              getEffectiveCryptBalanceDue(selectedCryptForSale) > 0
+                ? getEffectiveCryptBalanceDue(selectedCryptForSale)
                 : selectedCryptForSale.cost
             }
             onSubmit={handleCreateSale}
@@ -1306,10 +1379,7 @@ function CryptsPage() {
             cryptId={selectedCryptForPayment.id}
             paidByClientId={getCryptClientId(selectedCryptForPayment)}
             saving={savingPayment}
-            maxAmount={
-              selectedCryptForPayment.balance?.balanceDue ??
-              selectedCryptForPayment.cost
-            }
+            maxAmount={getEffectiveCryptBalanceDue(selectedCryptForPayment)}
             serverError={paymentModalError}
             onSubmit={handleCreatePayment}
             onCancel={handleClosePaymentModal}
@@ -1422,7 +1492,8 @@ function CryptsPage() {
           }
         }}
       />
-    </section>
+      </section>
+    </>
   );
 }
 

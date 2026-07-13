@@ -1,5 +1,6 @@
 ﻿import type { Payment } from "../../types/payment";
 import { formatCurrency } from "../../utils/currency";
+import { getPaymentMethodLabel } from "../../constants/paymentMethods";
 import { formatBackendDate } from "../../utils/date";
 
 type PaymentHistoryTableProps = {
@@ -59,8 +60,10 @@ function PaymentHistoryTable({
               <td>{formatCurrency(payment.amount)}</td>
 
               <td>
-                {payment.paymentMethod?.name ??
-                  `Método ${payment.paymentMethodId}`}
+                {getPaymentMethodLabel(
+                  payment.paymentMethodId,
+                  payment.paymentMethod?.name
+                )}
               </td>
 
               <td>

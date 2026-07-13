@@ -4,11 +4,31 @@ function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <span>Criptas Templo</span>
+        <img
+          className="navbar-brand-icon"
+          src="/favicon.svg"
+          alt=""
+          aria-hidden="true"
+        />
+
+        <div className="navbar-brand-copy">
+          <span className="navbar-brand-main">Criptas</span>
+          <span className="navbar-brand-subtitle">
+            Parroquia de Nuestra Señora de Lourdes
+          </span>
+        </div>
       </div>
 
       <div className="navbar-links">
-        
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            isActive ? "navbar-link active" : "navbar-link"
+          }
+        >
+          Inicio
+        </NavLink>
 
         <NavLink
           to="/crypts"
@@ -18,13 +38,14 @@ function Navbar() {
         >
           Criptas
         </NavLink>
+
         <NavLink
           to="/clients"
           className={({ isActive }) =>
             isActive ? "navbar-link active" : "navbar-link"
           }
         >
-          Clientes
+          Titulares
         </NavLink>
       </div>
     </nav>

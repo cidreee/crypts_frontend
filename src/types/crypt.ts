@@ -24,8 +24,8 @@ export interface Crypt {
   beneficiary?: Client | null;
   client?: Client | null;
   cryptRemains?: CryptRemain[] | null;
+  cryptOwnershipTransfers?: CryptOwnershipTransfer[] | null;
   saleCryptStatus?: SaleCryptStatus | null;
-  CryptOwnershipTransfers?: CryptOwnershipTransfer[] | null;
 
   balance?: CryptBalance | null;
 }
@@ -41,5 +41,6 @@ export type CryptPayload = Pick<
   title?: string | null;
   plateText?: string | null;
   isAvailable?: boolean | null;
+  purchasedAt?: string | null;
   createdAt?: string;
 };

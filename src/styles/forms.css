@@ -3,6 +3,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem 1.1rem;
   align-items: start;
+  animation: content-slide-up var(--motion-medium) var(--ease-out) both;
 }
 
 .form-group {
@@ -14,9 +15,9 @@
 
 .form-group label {
   margin: 0;
-  color: #344054;
+  color: var(--text-muted);
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .form-group-full,
@@ -36,7 +37,7 @@
   margin: 0;
   padding: 1rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
 }
 
@@ -45,6 +46,38 @@
   color: var(--text);
   font-size: 0.92rem;
   font-weight: 700;
+}
+
+.form-mode-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.1rem;
+  min-width: 0;
+  padding: 0.95rem;
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.form-mode-panel-full {
+  grid-column: 1 / -1;
+}
+
+.form-mode-panel-title {
+  grid-column: 1 / -1;
+  color: var(--primary-dark);
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.detail-mode-panel {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  padding: 0.8rem;
 }
 
 .required-mark {
@@ -60,15 +93,16 @@ textarea,
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background-color: var(--surface);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
   color: var(--text);
   font-size: 0.95rem;
   line-height: 1.35;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
-    background-color 0.2s ease;
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 input,
@@ -87,8 +121,8 @@ select {
   appearance: none;
   padding-right: 2.35rem;
   background-image:
-    linear-gradient(45deg, transparent 50%, #667085 50%),
-    linear-gradient(135deg, #667085 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
   background-position:
     calc(100% - 17px) 50%,
     calc(100% - 12px) 50%;
@@ -99,7 +133,7 @@ select {
 }
 
 input::placeholder {
-  color: #98a2b3;
+  color: #a79d8f;
 }
 
 input:disabled,
@@ -124,7 +158,8 @@ textarea:focus,
 .currency-input-wrapper:focus-within {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: var(--shadow-focus);
+  transform: translateY(-1px);
 }
 
 .form-hint {
@@ -192,9 +227,9 @@ input[name="amount"],
   align-items: center;
   gap: 1rem;
   padding: 0.85rem 1rem;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  background: var(--primary-soft);
+  border: 1px solid #bfdadd;
+  border-radius: var(--radius-md);
 }
 
 .payment-amount-summary div {
@@ -223,7 +258,7 @@ input[name="amount"],
   flex: 0 0 auto;
   padding: 0.52rem 0.8rem;
   background: var(--surface);
-  border: 1px solid #93c5fd;
+  border: 1px solid #bfdadd;
   color: var(--primary-dark);
   font-size: 0.86rem;
   font-weight: 700;
@@ -231,8 +266,8 @@ input[name="amount"],
 }
 
 .btn-amount-fill:hover:not(:disabled) {
-  background: #dbeafe;
-  border-color: #60a5fa;
+  background: #cfe4e8;
+  border-color: var(--primary);
 }
 
 .btn-amount-fill:disabled {
@@ -242,7 +277,9 @@ input[name="amount"],
 }
 
 @media (max-width: 680px) {
-  .form-container {
+  .form-container,
+  .form-section,
+  .form-mode-panel {
     grid-template-columns: 1fr;
   }
 

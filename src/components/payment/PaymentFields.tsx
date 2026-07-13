@@ -25,6 +25,18 @@ function RequiredMark() {
   );
 }
 
+function getPaymentAmountInputValue(value: string) {
+  const sanitized = value.replace(/[^\d.]/g, "");
+  const [integerPart, ...decimalParts] = sanitized.split(".");
+  const decimals = decimalParts.join("").slice(0, 2);
+
+  if (sanitized.includes(".")) {
+    return `${integerPart}.${decimals}`;
+  }
+
+  return integerPart;
+}
+
 function PaymentFields({
   amount,
   paymentMethodId,
@@ -42,6 +54,10 @@ function PaymentFields({
   const paymentDateId = `${idPrefix}-payment-date`;
   const paymentMethodIdId = `${idPrefix}-payment-method`;
   const showAmountHelper = maxAmount != null && maxAmount > 0;
+  const handleAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
+    event.target.value = getPaymentAmountInputValue(event.target.value);
+    onChange(event);
+  };
 
   return (
     <>
@@ -73,11 +89,13 @@ function PaymentFields({
         <div className="currency-input-wrapper">
           <span className="currency-symbol">$</span>
           <input
-            type="number"
+            type="text"
             id={amountId}
             name="amount"
             value={amount}
-            onChange={onChange}
+            onChange={handleAmountChange}
+            inputMode="decimal"
+            pattern="[0-9]*[.]?[0-9]{0,2}"
             min="0.01"
             max={maxAmount ?? undefined}
             step="0.01"

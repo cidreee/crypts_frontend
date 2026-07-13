@@ -1,14 +1,14 @@
 .table-container::-webkit-scrollbar {
-  height: 8px;
+  height: 9px;
 }
 
 .table-container::-webkit-scrollbar-track {
-  background: #eef2f6;
+  background: var(--surface-muted);
   border-radius: 999px;
 }
 
 .table-container::-webkit-scrollbar-thumb {
-  background: #98a2b3;
+  background: #bba98f;
   border-radius: 999px;
 }
 
@@ -19,8 +19,11 @@
   padding-bottom: 0.25rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+  animation: content-slide-up var(--motion-slow) var(--ease-out) both;
+  content-visibility: auto;
+  contain-intrinsic-size: 720px;
 }
 
 .clients-table,
@@ -37,7 +40,7 @@
 .data-table th,
 .data-table td {
   padding: 0.9rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
@@ -49,21 +52,24 @@
   top: 0;
   z-index: 3;
   background-color: var(--surface-muted);
-  color: #475467;
+  color: var(--text-muted);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
 }
 
 .clients-table tbody tr,
 .data-table tbody tr {
-  transition: background-color 0.2s ease;
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .clients-table tbody tr:hover,
 .data-table tbody tr:hover {
-  background-color: #f9fafb;
+  background-color: var(--surface-hover);
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 
 .clients-table tbody tr:last-child td,
@@ -79,40 +85,57 @@
   line-height: 1.35;
 }
 
-
+.clients-table .table-sticky-left,
+.clients-table .table-sticky-right,
 .data-table .table-sticky-left,
 .data-table .table-sticky-right {
   position: sticky;
   background-color: var(--surface);
 }
 
+.clients-table .table-sticky-left,
 .data-table .table-sticky-left {
   left: 0;
   min-width: 110px;
   z-index: 2;
 }
 
+.clients-table .table-sticky-right,
 .data-table .table-sticky-right {
   right: 0;
   min-width: 190px;
   z-index: 2;
-  box-shadow: -8px 0 14px -14px rgba(16, 24, 40, 0.42);
+  box-shadow: -8px 0 14px -14px rgba(66, 52, 36, 0.42);
 }
 
+.clients-table th.table-sticky-left,
+.clients-table th.table-sticky-right,
 .data-table th.table-sticky-left,
 .data-table th.table-sticky-right {
   z-index: 4;
   background-color: var(--surface-muted);
 }
 
+.clients-table tbody tr:hover .table-sticky-left,
+.clients-table tbody tr:hover .table-sticky-right,
 .data-table tbody tr:hover .table-sticky-left,
 .data-table tbody tr:hover .table-sticky-right {
-  background-color: #f9fafb;
+  background-color: var(--surface-hover);
 }
 
 .table-empty-value {
-  color: #b1b9c7;
+  color: #a79d8f;
   font-style: italic;
+}
+
+.table-inline-link {
+  color: var(--primary-dark);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.table-inline-link:hover {
+  text-decoration: underline;
 }
 
 .remains-count {
@@ -123,12 +146,12 @@
   min-width: 58px;
   min-height: 28px;
   overflow: hidden;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #bfdadd;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #162753;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .remains-count span {
@@ -139,17 +162,17 @@
 .remains-count i {
   position: absolute;
   inset: 0 auto 0 0;
-  background: rgba(37, 99, 235, 0.16);
+  background: var(--primary-tint);
 }
 
 .remains-count-full {
-  border-color: #bbf7d0;
-  background: #dcfce7;
-  color: #166534;
+  border-color: #b9dac7;
+  background: var(--success-soft);
+  color: #275b43;
 }
 
 .remains-count-full i {
-  background: rgba(22, 101, 52, 0.16);
+  background: rgba(63, 123, 95, 0.16);
 }
 
 .table-actions {
@@ -165,6 +188,34 @@
   font-size: 0.86rem;
 }
 
+.role-badges,
+.debt-badges {
+  display: inline-flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.clients-table .client-role-column {
+  width: 190px;
+  min-width: 190px;
+  max-width: 190px;
+  white-space: normal;
+}
+
+.clients-table .client-debt-column {
+  width: 190px;
+  min-width: 190px;
+  max-width: 190px;
+  white-space: normal;
+}
+
+.historical-payment-cell,
+.table-muted-italic {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .actions-select {
   width: 100%;
   min-width: 168px;
@@ -172,15 +223,15 @@
   min-height: 36px;
   padding: 0.5rem 2rem 0.5rem 0.7rem;
   border-color: var(--border-strong);
-  background-color: white;
+  background-color: var(--surface-raised);
   color: var(--text);
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .actions-select:hover {
-  border-color: #98a2b3;
-  background-color: var(--surface-muted);
+  border-color: var(--primary);
+  background-color: var(--surface-hover);
 }
 
 .badge {
@@ -190,15 +241,45 @@
   padding: 0.28rem 0.62rem;
   border-radius: 999px;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .badge-active {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: var(--success-soft);
+  color: #275b43;
 }
 
 .badge-inactive {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--danger-soft);
+  color: var(--danger-dark);
+}
+
+.badge-inherited {
+  background-color: var(--warning-soft);
+  color: #865225;
+}
+
+.badge-direct {
+  background-color: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.badge-role-current {
+  background-color: var(--success-soft);
+  color: #275b43;
+}
+
+.badge-role-beneficiary {
+  background-color: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.badge-role-mixed {
+  background-color: var(--info-soft);
+  color: #4f4c9b;
+}
+
+.badge-transferred {
+  background-color: var(--danger-soft);
+  color: var(--danger-dark);
 }

@@ -25,13 +25,25 @@ type ClientFormData = {
   lastName: string;
   phoneCountryCode: PhoneCountryCode;
   phoneNumber: string;
+  alternatePhoneCountryCode: PhoneCountryCode;
+  alternatePhoneNumber: string;
 };
+
+function RequiredMark() {
+  return (
+    <span className="required-mark" title="Obligatorio">
+      *
+    </span>
+  );
+}
 
 const emptyClientFormData: ClientFormData = {
   firstName: "",
   lastName: "",
   phoneCountryCode: "+52",
   phoneNumber: "",
+  alternatePhoneCountryCode: "+52",
+  alternatePhoneNumber: "",
 };
 
 function getClientFormData(client: Client | null): ClientFormData {
@@ -40,12 +52,15 @@ function getClientFormData(client: Client | null): ClientFormData {
   }
 
   const phone = splitPhoneNumber(client.phoneNumber);
+  const alternatePhone = splitPhoneNumber(client.alternatePhoneNumber);
 
   return {
     firstName: client.firstName,
     lastName: client.lastName,
     phoneCountryCode: phone.phoneCountryCode,
     phoneNumber: phone.phoneNumber,
+    alternatePhoneCountryCode: alternatePhone.phoneCountryCode,
+    alternatePhoneNumber: alternatePhone.phoneNumber,
   };
 }
 
@@ -71,10 +86,10 @@ function ClientForm({
   ) => {
     const { name, value } = e.target;
 
-    if (name === "phoneNumber") {
+    if (name === "phoneNumber" || name === "alternatePhoneNumber") {
       setFormData((prev) => ({
         ...prev,
-        phoneNumber: onlyDigits(value),
+        [name]: onlyDigits(value),
       }));
 
       return;
@@ -83,7 +98,7 @@ function ClientForm({
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "phoneCountryCode"
+        name === "phoneCountryCode" || name === "alternatePhoneCountryCode"
           ? (value as PhoneCountryCode)
           : value,
     }));
@@ -98,7 +113,16 @@ function ClientForm({
       return "El apellido es obligatorio.";
     }
 
-    return validatePhoneNumber(formData);
+    const phoneError = validatePhoneNumber(formData);
+
+    if (phoneError) {
+      return phoneError;
+    }
+
+    return validatePhoneNumber({
+      phoneCountryCode: formData.alternatePhoneCountryCode,
+      phoneNumber: formData.alternatePhoneNumber,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,6 +140,10 @@ function ClientForm({
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       phoneNumber: buildPhoneNumber(formData),
+      alternatePhoneNumber: buildPhoneNumber({
+        phoneCountryCode: formData.alternatePhoneCountryCode,
+        phoneNumber: formData.alternatePhoneNumber,
+      }),
       isActive: selectedClient?.isActive ?? true,
       createdAt: selectedClient?.createdAt,
     };
@@ -134,7 +162,9 @@ function ClientForm({
       {formError && <p className="error-message">{formError}</p>}
 
       <div className="form-group">
-        <label>Nombre</label>
+        <label>
+          Nombre <RequiredMark />
+        </label>
         <input
           type="text"
           name="firstName"
@@ -146,7 +176,9 @@ function ClientForm({
       </div>
 
       <div className="form-group">
-        <label>Apellido</label>
+        <label>
+          Apellido <RequiredMark />
+        </label>
         <input
           type="text"
           name="lastName"
@@ -158,7 +190,9 @@ function ClientForm({
       </div>
 
       <div className="form-group form-group-full">
-        <label>Celular</label>
+        <label>
+          Celular <RequiredMark />
+        </label>
 
         <div className="phone-input-group">
           <select
@@ -175,6 +209,33 @@ function ClientForm({
             type="tel"
             name="phoneNumber"
             value={formData.phoneNumber}
+            onChange={handleChange}
+            disabled={saving}
+            placeholder="4491234567"
+            maxLength={10}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="form-group form-group-full">
+        <label>Segundo celular opcional</label>
+
+        <div className="phone-input-group">
+          <select
+            name="alternatePhoneCountryCode"
+            value={formData.alternatePhoneCountryCode}
+            onChange={handleChange}
+            disabled={saving}
+          >
+            <option value="+52">+52 México</option>
+            <option value="+1">+1 USA/Canadá</option>
+          </select>
+
+          <input
+            type="tel"
+            name="alternatePhoneNumber"
+            value={formData.alternatePhoneNumber}
             onChange={handleChange}
             disabled={saving}
             placeholder="4491234567"

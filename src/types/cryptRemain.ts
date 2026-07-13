@@ -1,4 +1,3 @@
-import type { Crypt } from "./crypt";
 
 export interface CryptRemain {
   id?: number;
@@ -7,6 +6,4 @@ export interface CryptRemain {
   isActive?: boolean | null;
   createdAt: string;
   deletedAt?: string | null;
-
-  crypt?: Crypt;
 }

@@ -1,5 +1,11 @@
 export interface ClientBalance {
   cryptsCount: number;
+  currentCryptsCount?: number;
+  beneficiaryCryptsCount?: number;
+  cryptsAsBeneficiaryCount?: number;
+  inheritedCryptsCount?: number;
+  inheritedDebtAmount?: number;
+  inheritedDebt?: number;
   totalAmount: number;
   totalPaid: number;
   balanceDue: number;
@@ -14,9 +20,6 @@ export interface Client {
   isActive: boolean;
   createdAt?: string;
   balance?: ClientBalance | null;
-
-  cryptOwnershipTransferFromClients?: Client[] | null;
-  cryptOwnershipTransferToClients?: Client[] | null;
 }
 
 export type ClientPayload = Pick<

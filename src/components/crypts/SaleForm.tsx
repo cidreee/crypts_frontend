@@ -42,12 +42,16 @@ type SaleFormData = {
   lastName: string;
   phoneCountryCode: PhoneCountryCode;
   phoneNumber: string;
+  alternatePhoneCountryCode: PhoneCountryCode;
+  alternatePhoneNumber: string;
   beneficiaryMode: BeneficiaryMode;
   beneficiaryId: string;
   beneficiaryFirstName: string;
   beneficiaryLastName: string;
   beneficiaryPhoneCountryCode: PhoneCountryCode;
   beneficiaryPhoneNumber: string;
+  beneficiaryAlternatePhoneCountryCode: PhoneCountryCode;
+  beneficiaryAlternatePhoneNumber: string;
   title: string;
   plateText: string;
   amount: string;
@@ -65,12 +69,16 @@ function getInitialFormData(clients: Client[]): SaleFormData {
     lastName: "",
     phoneCountryCode: "+52",
     phoneNumber: "",
+    alternatePhoneCountryCode: "+52",
+    alternatePhoneNumber: "",
     beneficiaryMode: "none",
     beneficiaryId: firstClientId,
     beneficiaryFirstName: "",
     beneficiaryLastName: "",
     beneficiaryPhoneCountryCode: "+52",
     beneficiaryPhoneNumber: "",
+    beneficiaryAlternatePhoneCountryCode: "+52",
+    beneficiaryAlternatePhoneNumber: "",
     title: "",
     plateText: "",
     amount: "",
@@ -128,7 +136,12 @@ function SaleForm({
 
     setFormError("");
 
-    if (name === "phoneNumber" || name === "beneficiaryPhoneNumber") {
+    if (
+      name === "phoneNumber" ||
+      name === "alternatePhoneNumber" ||
+      name === "beneficiaryPhoneNumber" ||
+      name === "beneficiaryAlternatePhoneNumber"
+    ) {
       setFormData((prev) => ({
         ...prev,
         [name]: onlyDigits(value),
@@ -168,7 +181,10 @@ function SaleForm({
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "phoneCountryCode" || name === "beneficiaryPhoneCountryCode"
+        name === "phoneCountryCode" ||
+        name === "alternatePhoneCountryCode" ||
+        name === "beneficiaryPhoneCountryCode" ||
+        name === "beneficiaryAlternatePhoneCountryCode"
           ? (value as PhoneCountryCode)
           : value,
     }));
@@ -196,7 +212,16 @@ function SaleForm({
       return "El apellido del cliente es obligatorio.";
     }
 
-    return validatePhoneNumber(formData);
+    const phoneError = validatePhoneNumber(formData);
+
+    if (phoneError) {
+      return phoneError;
+    }
+
+    return validatePhoneNumber({
+      phoneCountryCode: formData.alternatePhoneCountryCode,
+      phoneNumber: formData.alternatePhoneNumber,
+    });
   };
 
   const validateBeneficiaryData = () => {
@@ -216,9 +241,18 @@ function SaleForm({
       return "El apellido del beneficiario es obligatorio.";
     }
 
-    return validatePhoneNumber({
+    const phoneError = validatePhoneNumber({
       phoneCountryCode: formData.beneficiaryPhoneCountryCode,
       phoneNumber: formData.beneficiaryPhoneNumber,
+    });
+
+    if (phoneError) {
+      return phoneError;
+    }
+
+    return validatePhoneNumber({
+      phoneCountryCode: formData.beneficiaryAlternatePhoneCountryCode,
+      phoneNumber: formData.beneficiaryAlternatePhoneNumber,
     });
   };
 
@@ -266,6 +300,10 @@ function SaleForm({
                 phoneCountryCode: formData.beneficiaryPhoneCountryCode,
                 phoneNumber: formData.beneficiaryPhoneNumber,
               }),
+              alternatePhoneNumber: buildPhoneNumber({
+                phoneCountryCode: formData.beneficiaryAlternatePhoneCountryCode,
+                phoneNumber: formData.beneficiaryAlternatePhoneNumber,
+              }),
               isActive: true,
             }
           : undefined,
@@ -278,6 +316,11 @@ function SaleForm({
     event.preventDefault();
 
     if (saving) return;
+
+    if (!formData.plateText.trim()) {
+      setFormError("El texto de placa es obligatorio.");
+      return;
+    }
 
     const clientValidationMessage = validateClientData();
 
@@ -314,6 +357,10 @@ function SaleForm({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         phoneNumber: buildPhoneNumber(formData),
+        alternatePhoneNumber: buildPhoneNumber({
+          phoneCountryCode: formData.alternatePhoneCountryCode,
+          phoneNumber: formData.alternatePhoneNumber,
+        }),
         isActive: true,
       },
       initialPayment,
@@ -348,7 +395,10 @@ function SaleForm({
         </div>
 
         {formData.mode === "existing" && (
-          <div className="form-group form-group-full">
+          <div className="form-mode-panel form-mode-panel-full">
+            <div className="form-mode-panel-title">Cliente existente</div>
+
+            <div className="form-group form-group-full">
             <label htmlFor="sale-client-id">
               Cliente <RequiredMark />
             </label>
@@ -368,11 +418,14 @@ function SaleForm({
                 </option>
               ))}
             </select>
+            </div>
           </div>
         )}
 
         {formData.mode === "new" && (
-          <>
+          <div className="form-mode-panel form-mode-panel-full">
+            <div className="form-mode-panel-title">Datos del cliente nuevo</div>
+
             <div className="form-group">
               <label htmlFor="sale-first-name">
                 Nombre <RequiredMark />
@@ -404,7 +457,9 @@ function SaleForm({
             </div>
 
             <div className="form-group form-group-full">
-              <label htmlFor="sale-phone-number">Celular</label>
+              <label htmlFor="sale-phone-number">
+                Celular <RequiredMark />
+              </label>
 
               <div className="phone-input-group">
                 <select
@@ -427,10 +482,41 @@ function SaleForm({
                   disabled={saving}
                   placeholder="4491234567"
                   maxLength={10}
+                  required
                 />
               </div>
             </div>
-          </>
+
+            <div className="form-group form-group-full">
+              <label htmlFor="sale-alternate-phone-number">
+                Segundo celular opcional
+              </label>
+
+              <div className="phone-input-group">
+                <select
+                  name="alternatePhoneCountryCode"
+                  value={formData.alternatePhoneCountryCode}
+                  onChange={handleChange}
+                  disabled={saving}
+                  aria-label="Codigo de pais del segundo telefono"
+                >
+                  <option value="+52">+52 Mexico</option>
+                  <option value="+1">+1 USA/Canada</option>
+                </select>
+
+                <input
+                  type="tel"
+                  id="sale-alternate-phone-number"
+                  name="alternatePhoneNumber"
+                  value={formData.alternatePhoneNumber}
+                  onChange={handleChange}
+                  disabled={saving}
+                  placeholder="4491234567"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+          </div>
         )}
       </fieldset>
 
@@ -455,7 +541,10 @@ function SaleForm({
         </div>
 
         {formData.beneficiaryMode === "existing" && (
-          <div className="form-group form-group-full">
+          <div className="form-mode-panel form-mode-panel-full">
+            <div className="form-mode-panel-title">Beneficiario existente</div>
+
+            <div className="form-group form-group-full">
             <label htmlFor="sale-beneficiary-id">
               Beneficiario <RequiredMark />
             </label>
@@ -475,11 +564,16 @@ function SaleForm({
                 </option>
               ))}
             </select>
+            </div>
           </div>
         )}
 
         {formData.beneficiaryMode === "new" && (
-          <>
+          <div className="form-mode-panel form-mode-panel-full">
+            <div className="form-mode-panel-title">
+              Datos del beneficiario nuevo
+            </div>
+
             <div className="form-group">
               <label htmlFor="sale-beneficiary-first-name">
                 Nombre <RequiredMark />
@@ -511,7 +605,9 @@ function SaleForm({
             </div>
 
             <div className="form-group form-group-full">
-              <label htmlFor="sale-beneficiary-phone-number">Celular</label>
+              <label htmlFor="sale-beneficiary-phone-number">
+                Celular <RequiredMark />
+              </label>
 
               <div className="phone-input-group">
                 <select
@@ -534,10 +630,41 @@ function SaleForm({
                   disabled={saving}
                   placeholder="4491234567"
                   maxLength={10}
+                  required
                 />
               </div>
             </div>
-          </>
+
+            <div className="form-group form-group-full">
+              <label htmlFor="sale-beneficiary-alternate-phone-number">
+                Segundo celular opcional
+              </label>
+
+              <div className="phone-input-group">
+                <select
+                  name="beneficiaryAlternatePhoneCountryCode"
+                  value={formData.beneficiaryAlternatePhoneCountryCode}
+                  onChange={handleChange}
+                  disabled={saving}
+                  aria-label="Codigo de pais del segundo telefono del beneficiario"
+                >
+                  <option value="+52">+52 Mexico</option>
+                  <option value="+1">+1 USA/Canada</option>
+                </select>
+
+                <input
+                  type="tel"
+                  id="sale-beneficiary-alternate-phone-number"
+                  name="beneficiaryAlternatePhoneNumber"
+                  value={formData.beneficiaryAlternatePhoneNumber}
+                  onChange={handleChange}
+                  disabled={saving}
+                  placeholder="4491234567"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+          </div>
         )}
       </fieldset>
 
@@ -559,7 +686,9 @@ function SaleForm({
         </div>
 
         <div className="form-group">
-          <label htmlFor="sale-plate-text">Texto de placa</label>
+          <label htmlFor="sale-plate-text">
+            Texto de placa <RequiredMark />
+          </label>
           <input
             type="text"
             id="sale-plate-text"
@@ -569,6 +698,7 @@ function SaleForm({
             disabled={saving}
             placeholder="Nombre para la placa"
             maxLength={180}
+            required
           />
         </div>
       </fieldset>

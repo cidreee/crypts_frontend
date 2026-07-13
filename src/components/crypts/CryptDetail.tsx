@@ -1,15 +1,28 @@
 import { useEffect, useState } from "react";
-import type { Client } from "../../types/client";
+import { Link } from "react-router-dom";
+import type { Client, ClientPayload } from "../../types/client";
 import type { Crypt, CryptPayload } from "../../types/crypt";
 import type { CryptRemain } from "../../types/cryptRemain";
 import type { Payment } from "../../types/payment";
+import { getPaymentMethodLabel } from "../../constants/paymentMethods";
 import { formatCurrency } from "../../utils/currency";
 import { formatBackendDate } from "../../utils/date";
+import { getEffectiveCryptBalanceDue } from "../../utils/cryptOwnership";
+import {
+  buildPhoneNumber,
+  onlyDigits,
+  validatePhoneNumber,
+  type PhoneCountryCode,
+} from "../../utils/phone";
 
-type EditableCryptDetails = Pick<
+type BeneficiaryEditMode = "none" | "existing" | "new";
+
+export type EditableCryptDetails = Pick<
   CryptPayload,
-  "beneficiaryId" | "title" | "plateText"
->;
+  "beneficiaryId" | "title" | "plateText" | "cost"
+> & {
+  beneficiary?: ClientPayload;
+};
 
 type CryptDetailProps = {
   crypt: Crypt;
@@ -29,7 +42,15 @@ type CryptDetailProps = {
 };
 
 type DetailEditForm = {
+  beneficiaryMode: BeneficiaryEditMode;
   beneficiaryId: string;
+  beneficiaryFirstName: string;
+  beneficiaryLastName: string;
+  beneficiaryPhoneCountryCode: PhoneCountryCode;
+  beneficiaryPhoneNumber: string;
+  beneficiaryAlternatePhoneCountryCode: PhoneCountryCode;
+  beneficiaryAlternatePhoneNumber: string;
+  cost: string;
   title: string;
   plateText: string;
 };
@@ -46,6 +67,36 @@ function formatClientName(client: Crypt["client"] | Crypt["beneficiary"]) {
   if (!client) return "-";
 
   return `${client.firstName} ${client.lastName}`.trim() || "-";
+}
+
+function getClientSearchUrl(client: Crypt["client"] | Crypt["beneficiary"]) {
+  if (!client) return "";
+
+  const searchValue =
+    `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() ||
+    client.phoneNumber ||
+    client.id?.toString() ||
+    "";
+
+  return `/clients?search=${encodeURIComponent(searchValue)}`;
+}
+
+function ClientDetailLink({
+  client,
+  fallback,
+}: {
+  client: Crypt["client"] | Crypt["beneficiary"];
+  fallback: string;
+}) {
+  if (!client) {
+    return <EmptyValue>{fallback}</EmptyValue>;
+  }
+
+  return (
+    <Link className="table-inline-link" to={getClientSearchUrl(client)}>
+      {formatClientName(client)}
+    </Link>
+  );
 }
 
 function formatPaymentClientName(payment: Payment) {
@@ -65,7 +116,7 @@ function getStatusLabel(crypt: Crypt) {
   if (crypt.isAvailable) return "Disponible";
 
   const totalPaid = crypt.balance?.totalPaid ?? 0;
-  const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+  const balanceDue = getEffectiveCryptBalanceDue(crypt);
 
   if (totalPaid <= 0) return "Sin pago";
   if (balanceDue > 0) return "Abonando";
@@ -74,12 +125,30 @@ function getStatusLabel(crypt: Crypt) {
 }
 
 function getInitialEditForm(crypt: Crypt): DetailEditForm {
+  const beneficiaryId =
+    crypt.beneficiaryId?.toString() ?? crypt.beneficiary?.id?.toString() ?? "";
+
   return {
-    beneficiaryId:
-      crypt.beneficiaryId?.toString() ?? crypt.beneficiary?.id?.toString() ?? "",
+    beneficiaryMode: beneficiaryId ? "existing" : "none",
+    beneficiaryId,
+    beneficiaryFirstName: "",
+    beneficiaryLastName: "",
+    beneficiaryPhoneCountryCode: "+52",
+    beneficiaryPhoneNumber: "",
+    beneficiaryAlternatePhoneCountryCode: "+52",
+    beneficiaryAlternatePhoneNumber: "",
+    cost: crypt.cost?.toString() ?? "",
     title: crypt.title ?? "",
     plateText: crypt.plateText ?? "",
   };
+}
+
+function RequiredMark() {
+  return (
+    <span className="required-mark" title="Obligatorio">
+      *
+    </span>
+  );
 }
 
 function EmptyValue({ children }: { children: React.ReactNode }) {
@@ -122,41 +191,176 @@ function CryptDetail({
   const [editForm, setEditForm] = useState<DetailEditForm>(() =>
     getInitialEditForm(crypt)
   );
+  const [editFormError, setEditFormError] = useState("");
   const clientName = crypt.client
     ? formatClientName(crypt.client)
     : "Sin cliente";
+  const currentClientId = crypt.clientId ?? crypt.client?.id ?? null;
+  const beneficiaryOptions = clients.filter(
+    (client) => client.id !== currentClientId
+  );
   const beneficiaryClient =
     crypt.beneficiary ??
     clients.find((client) => client.id === crypt.beneficiaryId) ??
     null;
   const beneficiaryName = formatClientName(beneficiaryClient);
-  const totalPaid = crypt.balance?.totalPaid ?? 0;
-  const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+  const totalPaid =
+    payments.length > 0
+      ? payments.reduce((sum, payment) => {
+          return payment.isActive === false ? sum : sum + payment.amount;
+        }, 0)
+      : crypt.balance?.totalPaid ?? 0;
+  const balanceDue = getEffectiveCryptBalanceDue(crypt);
   const paymentsCount = crypt.balance?.paymentsCount ?? payments.length;
   const activeRemains = remains.filter((remain) => remain.isActive ?? true);
 
   useEffect(() => {
     setEditForm(getInitialEditForm(crypt));
+    setEditFormError("");
   }, [crypt]);
+
+  useEffect(() => {
+    if (!editing) return;
+
+    setEditForm((prev) => {
+      if (prev.beneficiaryMode !== "existing") return prev;
+
+      const selectedBeneficiaryId = Number(prev.beneficiaryId);
+      const selectedBeneficiaryIsValid = beneficiaryOptions.some(
+        (client) => client.id === selectedBeneficiaryId
+      );
+
+      if (selectedBeneficiaryIsValid) return prev;
+
+      return {
+        ...prev,
+        beneficiaryMode: beneficiaryOptions.length > 0 ? "existing" : "none",
+        beneficiaryId: beneficiaryOptions[0]?.id?.toString() ?? "",
+      };
+    });
+  }, [beneficiaryOptions, editing]);
 
   const handleEditChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = event.target;
 
+    setEditFormError("");
+
+    if (
+      name === "beneficiaryPhoneNumber" ||
+      name === "beneficiaryAlternatePhoneNumber"
+    ) {
+      setEditForm((prev) => ({
+        ...prev,
+        [name]: onlyDigits(value),
+      }));
+
+      return;
+    }
+
+    if (name === "beneficiaryMode") {
+      const mode = value as BeneficiaryEditMode;
+
+      setEditForm((prev) => ({
+        ...prev,
+        beneficiaryMode: mode,
+        beneficiaryId:
+          mode === "existing"
+            ? beneficiaryOptions[0]?.id?.toString() ?? ""
+            : "",
+      }));
+
+      return;
+    }
+
     setEditForm((prev) => ({
       ...prev,
-      [name]: value,
+      [name]:
+        name === "beneficiaryPhoneCountryCode" ||
+        name === "beneficiaryAlternatePhoneCountryCode"
+          ? (value as PhoneCountryCode)
+          : value,
     }));
   };
 
   const handleSaveEdit = () => {
+    if (editForm.beneficiaryMode === "existing") {
+      const beneficiaryId = Number(editForm.beneficiaryId);
+
+      if (!beneficiaryId) {
+        setEditFormError("Selecciona un beneficiario.");
+        return;
+      }
+
+      if (beneficiaryId === currentClientId) {
+        setEditFormError("El beneficiario no puede ser el cliente actual.");
+        return;
+      }
+    }
+
+    if (editForm.beneficiaryMode === "new") {
+      if (!editForm.beneficiaryFirstName.trim()) {
+        setEditFormError("El nombre del beneficiario es obligatorio.");
+        return;
+      }
+
+      if (!editForm.beneficiaryLastName.trim()) {
+        setEditFormError("El apellido del beneficiario es obligatorio.");
+        return;
+      }
+
+      const phoneError = validatePhoneNumber({
+        phoneCountryCode: editForm.beneficiaryPhoneCountryCode,
+        phoneNumber: editForm.beneficiaryPhoneNumber,
+      });
+
+      if (phoneError) {
+        setEditFormError(phoneError);
+        return;
+      }
+
+      const alternatePhoneError = validatePhoneNumber({
+        phoneCountryCode: editForm.beneficiaryAlternatePhoneCountryCode,
+        phoneNumber: editForm.beneficiaryAlternatePhoneNumber,
+      });
+
+      if (alternatePhoneError) {
+        setEditFormError(alternatePhoneError);
+        return;
+      }
+    }
+
+    const cost = Number(editForm.cost);
+
+    if (!Number.isFinite(cost) || cost <= 0) {
+      setEditFormError("El costo de la cripta debe ser mayor a 0.");
+      return;
+    }
+
     onSaveEdit({
-      beneficiaryId: editForm.beneficiaryId
+      beneficiaryId: editForm.beneficiaryMode === "existing" && editForm.beneficiaryId
         ? Number(editForm.beneficiaryId)
         : null,
+      beneficiary:
+        editForm.beneficiaryMode === "new"
+          ? {
+              firstName: editForm.beneficiaryFirstName.trim(),
+              lastName: editForm.beneficiaryLastName.trim(),
+              phoneNumber: buildPhoneNumber({
+                phoneCountryCode: editForm.beneficiaryPhoneCountryCode,
+                phoneNumber: editForm.beneficiaryPhoneNumber,
+              }),
+              alternatePhoneNumber: buildPhoneNumber({
+                phoneCountryCode: editForm.beneficiaryAlternatePhoneCountryCode,
+                phoneNumber: editForm.beneficiaryAlternatePhoneNumber,
+              }),
+              isActive: true,
+            }
+          : undefined,
       title: editForm.title.trim() || null,
       plateText: editForm.plateText.trim() || null,
+      cost,
     });
   };
 
@@ -216,32 +420,155 @@ function CryptDetail({
           <h3>Venta y documentos</h3>
         </div>
 
+        {editing && editFormError && (
+          <p className="error-message">{editFormError}</p>
+        )}
+
         <div className="detail-grid">
-          <DetailItem label="Cliente" value={clientName} inactive={editing} />
+          <DetailItem
+            label="Cliente"
+            value={
+              <ClientDetailLink client={crypt.client} fallback={clientName} />
+            }
+            inactive={editing}
+          />
 
           <div className={`detail-item ${editing ? "detail-item-editable" : ""}`}>
             <span>Beneficiario</span>
             {editing ? (
-              <select
-                name="beneficiaryId"
-                value={editForm.beneficiaryId}
-                onChange={handleEditChange}
-                disabled={saving || clients.length === 0}
-              >
-                <option value="">Sin beneficiario</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.firstName} {client.lastName}
-                    {client.phoneNumber ? ` - ${client.phoneNumber}` : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="nested-edit-fields">
+                <select
+                  name="beneficiaryMode"
+                  value={editForm.beneficiaryMode}
+                  onChange={handleEditChange}
+                  disabled={saving}
+                >
+                  <option value="none">Sin beneficiario</option>
+                  {beneficiaryOptions.length > 0 && (
+                    <option value="existing">Beneficiario existente</option>
+                  )}
+                  <option value="new">Beneficiario nuevo</option>
+                </select>
+
+                {editForm.beneficiaryMode === "existing" && (
+                  <div className="form-mode-panel detail-mode-panel">
+                    <div className="form-mode-panel-title">
+                      Beneficiario existente
+                    </div>
+
+                    <select
+                      name="beneficiaryId"
+                      value={editForm.beneficiaryId}
+                      onChange={handleEditChange}
+                      disabled={saving || beneficiaryOptions.length === 0}
+                      required
+                    >
+                      {beneficiaryOptions.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.firstName} {client.lastName}
+                          {client.phoneNumber ? ` - ${client.phoneNumber}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {editForm.beneficiaryMode === "new" && (
+                  <div className="form-mode-panel detail-mode-panel">
+                    <div className="form-mode-panel-title">
+                      Datos del beneficiario nuevo
+                    </div>
+
+                  <div className="inline-form-grid">
+                    <label>
+                      Nombre <RequiredMark />
+                      <input
+                        type="text"
+                        name="beneficiaryFirstName"
+                        value={editForm.beneficiaryFirstName}
+                        onChange={handleEditChange}
+                        disabled={saving}
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      Apellido <RequiredMark />
+                      <input
+                        type="text"
+                        name="beneficiaryLastName"
+                        value={editForm.beneficiaryLastName}
+                        onChange={handleEditChange}
+                        disabled={saving}
+                        required
+                      />
+                    </label>
+
+                    <label className="inline-form-grid-full">
+                      Celular <RequiredMark />
+                      <div className="phone-input-group">
+                        <select
+                          name="beneficiaryPhoneCountryCode"
+                          value={editForm.beneficiaryPhoneCountryCode}
+                          onChange={handleEditChange}
+                          disabled={saving}
+                          aria-label="Codigo de pais del beneficiario"
+                        >
+                          <option value="+52">+52 Mexico</option>
+                          <option value="+1">+1 USA/Canada</option>
+                        </select>
+
+                        <input
+                          type="tel"
+                          name="beneficiaryPhoneNumber"
+                          value={editForm.beneficiaryPhoneNumber}
+                          onChange={handleEditChange}
+                          disabled={saving}
+                          placeholder="4491234567"
+                          maxLength={10}
+                          required
+                        />
+                      </div>
+                    </label>
+
+                    <label className="inline-form-grid-full">
+                      Segundo celular opcional
+                      <div className="phone-input-group">
+                        <select
+                          name="beneficiaryAlternatePhoneCountryCode"
+                          value={editForm.beneficiaryAlternatePhoneCountryCode}
+                          onChange={handleEditChange}
+                          disabled={saving}
+                          aria-label="Codigo de pais del segundo telefono del beneficiario"
+                        >
+                          <option value="+52">+52 Mexico</option>
+                          <option value="+1">+1 USA/Canada</option>
+                        </select>
+
+                        <input
+                          type="tel"
+                          name="beneficiaryAlternatePhoneNumber"
+                          value={editForm.beneficiaryAlternatePhoneNumber}
+                          onChange={handleEditChange}
+                          disabled={saving}
+                          placeholder="4491234567"
+                          maxLength={10}
+                        />
+                      </div>
+                    </label>
+                  </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <strong>
                 {beneficiaryName === "-" ? (
                   <EmptyValue>Sin beneficiario</EmptyValue>
                 ) : (
-                  beneficiaryName
+                  <ClientDetailLink
+                    client={beneficiaryClient}
+                    fallback={beneficiaryName}
+                  />
                 )}
               </strong>
             )}
@@ -277,7 +604,9 @@ function CryptDetail({
           </div>
 
           <div className={`detail-item ${editing ? "detail-item-editable" : ""}`}>
-            <span>Texto de placa</span>
+            <span>
+              Texto de placa {editing && <RequiredMark />}
+            </span>
             {editing ? (
               <input
                 type="text"
@@ -287,6 +616,7 @@ function CryptDetail({
                 placeholder="No definida"
                 maxLength={180}
                 disabled={saving}
+                required
               />
             ) : (
               <strong>
@@ -308,11 +638,25 @@ function CryptDetail({
         </div>
 
         <div className="detail-grid detail-grid-compact">
-          <DetailItem
-            label="Costo"
-            value={formatCurrency(crypt.cost)}
-            inactive={editing}
-          />
+          <div className={`detail-item ${editing ? "detail-item-editable" : ""}`}>
+            <span>
+              Costo {editing && <RequiredMark />}
+            </span>
+            {editing ? (
+              <input
+                type="number"
+                name="cost"
+                value={editForm.cost}
+                onChange={handleEditChange}
+                min="0.01"
+                step="0.01"
+                disabled={saving}
+                required
+              />
+            ) : (
+              <strong>{formatCurrency(crypt.cost)}</strong>
+            )}
+          </div>
           <DetailItem
             label="Total pagado"
             value={formatCurrency(totalPaid)}
@@ -391,8 +735,10 @@ function CryptDetail({
                     <td>{formatPaymentClientName(payment)}</td>
                     <td>{formatCurrency(payment.amount)}</td>
                     <td>
-                      {payment.paymentMethod?.name ??
-                        `Método ${payment.paymentMethodId}`}
+                      {getPaymentMethodLabel(
+                        payment.paymentMethodId,
+                        payment.paymentMethod?.name
+                      )}
                     </td>
                     <td>{formatDate(payment.paymentDate)}</td>
                     <td>

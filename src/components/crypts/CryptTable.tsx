@@ -1,6 +1,8 @@
 ﻿import type { Crypt } from "../../types/crypt";
+import { Link } from "react-router-dom";
 import { formatCurrency } from "../../utils/format";
 import { formatBackendDate } from "../../utils/date";
+import { getEffectiveCryptBalanceDue } from "../../utils/cryptOwnership";
 
 type CryptTableProps = {
   crypts: Crypt[];
@@ -10,14 +12,13 @@ type CryptTableProps = {
   onAddRemain: (crypt: Crypt) => void;
   onViewDetails: (crypt: Crypt) => void;
   activeRemainsCountByCryptId?: Record<number, number>;
-  getPurchaseDate?: (crypt: Crypt) => string | undefined;
 };
 
 function getPaymentStatusLabel(crypt: Crypt) {
   if (crypt.isAvailable) return "Disponible";
 
   const totalPaid = crypt.balance?.totalPaid ?? 0;
-  const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+  const balanceDue = getEffectiveCryptBalanceDue(crypt);
 
   if (totalPaid <= 0) return "Sin pago";
   if (balanceDue > 0) return "Abonando";
@@ -29,7 +30,7 @@ function getPaymentStatusClass(crypt: Crypt) {
   if (crypt.isAvailable) return "status-available";
 
   const totalPaid = crypt.balance?.totalPaid ?? 0;
-  const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+  const balanceDue = getEffectiveCryptBalanceDue(crypt);
 
   if (totalPaid <= 0) return "status-no-payment";
   if (balanceDue > 0) return "status-paying";
@@ -60,6 +61,36 @@ function EmptyTableValue({ children }: { children: React.ReactNode }) {
   return <span className="table-empty-value">{children}</span>;
 }
 
+function getClientSearchUrl(client: Crypt["client"] | Crypt["beneficiary"]) {
+  if (!client) return "";
+
+  const searchValue =
+    `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() ||
+    client.phoneNumber ||
+    client.id?.toString() ||
+    "";
+
+  return `/clients?search=${encodeURIComponent(searchValue)}`;
+}
+
+function ClientTableLink({
+  client,
+  fallback,
+}: {
+  client: Crypt["client"] | Crypt["beneficiary"];
+  fallback: string;
+}) {
+  if (!client) {
+    return <EmptyTableValue>{fallback}</EmptyTableValue>;
+  }
+
+  return (
+    <Link className="table-inline-link" to={getClientSearchUrl(client)}>
+      {formatClientName(client, fallback)}
+    </Link>
+  );
+}
+
 function CryptTable({
   crypts,
   onRegisterSale,
@@ -68,7 +99,6 @@ function CryptTable({
   onAddRemain,
   onViewDetails,
   activeRemainsCountByCryptId = {},
-  getPurchaseDate,
 }: CryptTableProps) {
   return (
     <div className="table-container">
@@ -105,11 +135,11 @@ function CryptTable({
             const plateText = formatNullableText(crypt.plateText);
 
             const totalPaid = crypt.balance?.totalPaid ?? 0;
-            const balanceDue = crypt.balance?.balanceDue ?? crypt.cost;
+            const balanceDue = getEffectiveCryptBalanceDue(crypt);
             const paymentsCount = crypt.balance?.paymentsCount ?? 0;
 
             const isPaid = !crypt.isAvailable && balanceDue <= 0;
-            const purchaseDate = getPurchaseDate?.(crypt) ?? crypt.purchasedAt;
+            const purchaseDate = crypt.purchasedAt;
 
             const handleActionChange = (
               e: React.ChangeEvent<HTMLSelectElement>
@@ -136,17 +166,16 @@ function CryptTable({
                   )}
                 </td>
                 <td>
-                  {crypt.client ? (
-                    clientName
-                  ) : (
-                    <EmptyTableValue>{clientName}</EmptyTableValue>
-                  )}
+                  <ClientTableLink client={crypt.client} fallback={clientName} />
                 </td>
                 <td>
                   {beneficiaryName === "-" ? (
                     <EmptyTableValue>Sin beneficiario</EmptyTableValue>
                   ) : (
-                    beneficiaryName
+                    <ClientTableLink
+                      client={crypt.beneficiary}
+                      fallback={beneficiaryName}
+                    />
                   )}
                 </td>
                 <td>
