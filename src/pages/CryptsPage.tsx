@@ -10,6 +10,7 @@ import type { Payment, PaymentPayload } from "../types/payment";
 import type { Client, ClientPayload } from "../types/client";
 import CryptTable from "../components/crypts/CryptTable";
 import CryptDetail, {
+  type CryptDetailHandle,
   type EditableCryptDetails,
 } from "../components/crypts/CryptDetail";
 import SaleForm, { type SaleDetails } from "../components/crypts/SaleForm";
@@ -43,6 +44,18 @@ type SortDirection = "asc" | "desc";
 type PendingCryptUpdate = CryptPayload & {
   beneficiary?: ClientPayload;
 };
+type PendingSale = {
+  mode: "existing" | "new";
+  clientData: number | ClientPayload;
+  initialPayment?: Omit<PaymentPayload, "paidByClientId">;
+  saleDetails?: SaleDetails;
+};
+type DiscardTarget =
+  | "crypt-edit"
+  | "detail"
+  | "sale"
+  | "payment-create"
+  | "payment-edit";
 
 const availabilityFilterValues: AvailabilityFilter[] = [
   "all",
@@ -162,6 +175,7 @@ function CryptsPage() {
   const { crypts, loading, error, loadCrypts } = useCrypts();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const cryptDetailRef = useRef<CryptDetailHandle>(null);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
@@ -185,6 +199,18 @@ function CryptsPage() {
 
   const [selectedCryptForPayment, setSelectedCryptForPayment] =
     useState<Crypt | null>(null);
+  const [selectedPaymentForEdit, setSelectedPaymentForEdit] =
+    useState<Payment | null>(null);
+  const [pendingSale, setPendingSale] = useState<PendingSale | null>(null);
+  const [pendingPaymentCreation, setPendingPaymentCreation] =
+    useState<PaymentPayload | null>(null);
+  const [pendingPaymentUpdate, setPendingPaymentUpdate] =
+    useState<PaymentPayload | null>(null);
+  const [cryptDetailDirty, setCryptDetailDirty] = useState(false);
+  const [saleFormDirty, setSaleFormDirty] = useState(false);
+  const [paymentCreationDirty, setPaymentCreationDirty] = useState(false);
+  const [paymentEditDirty, setPaymentEditDirty] = useState(false);
+  const [discardTarget, setDiscardTarget] = useState<DiscardTarget | null>(null);
 
   const [selectedCryptForRemain, setSelectedCryptForRemain] =
     useState<Crypt | null>(null);
@@ -679,6 +705,7 @@ function CryptsPage() {
       setPendingCryptUpdate(null);
     } catch (err) {
       console.error("Error updating crypt:", err);
+      setPendingCryptUpdate(null);
       setPageError(getApiErrorMessage(err, "No se pudo actualizar la cripta."));
     } finally {
       setSavingCrypt(false);
@@ -780,12 +807,14 @@ function CryptsPage() {
       }
 
       setSelectedCryptForSale(null);
+      setPendingSale(null);
       setPageMessage("Venta registrada correctamente.");
 
       await loadCrypts();
       setClientsLoaded(false);
     } catch (err) {
       console.error("Error creating sale:", err);
+      setPendingSale(null);
       setPageError(getApiErrorMessage(err, "No se pudo registrar la venta."));
     } finally {
       setSavingSale(false);
@@ -891,14 +920,56 @@ function CryptsPage() {
       });
 
       setSelectedCryptForPayment(null);
+      setPendingPaymentCreation(null);
       setPageMessage("Pago registrado correctamente.");
 
       await loadCrypts();
     } catch (err) {
       console.error("Error creating payment:", err);
+      setPendingPaymentCreation(null);
 
       const message = getApiErrorMessage(err, "No se pudo registrar el pago.");
       setPaymentModalError(message);
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  const handleEditDetailPayment = (payment: Payment) => {
+    clearPageMessages();
+    setPaymentModalError("");
+    setSelectedPaymentForEdit(payment);
+  };
+
+  const handleUpdateDetailPayment = async (
+    payment: PaymentPayload
+  ): Promise<void> => {
+    if (!payment.id || savingPayment) return;
+
+    try {
+      setSavingPayment(true);
+      clearPageMessages();
+      setPaymentModalError("");
+
+      await apiService.payments.update(payment.id, payment);
+
+      const [updatedPayments, updatedCrypt] = await Promise.all([
+        apiService.payments.getHistory(undefined, payment.cryptId),
+        apiService.crypts.getById(payment.cryptId),
+        loadCrypts(),
+      ]);
+
+      setDetailPayments(Array.isArray(updatedPayments) ? updatedPayments : []);
+      setSelectedCryptForDetail(updatedCrypt);
+      setSelectedPaymentForEdit(null);
+      setPendingPaymentUpdate(null);
+      setPageMessage("Pago actualizado correctamente.");
+    } catch (err) {
+      console.error("Error updating payment:", err);
+      setPendingPaymentUpdate(null);
+      setPaymentModalError(
+        getApiErrorMessage(err, "No se pudo actualizar el pago.")
+      );
     } finally {
       setSavingPayment(false);
     }
@@ -1053,6 +1124,8 @@ function CryptsPage() {
     setSelectedCryptForDetail(null);
     setEditingDetailCrypt(false);
     setPendingCryptUpdate(null);
+    setCryptDetailDirty(false);
+    setDiscardTarget(null);
     setDetailPayments([]);
     setDetailPaymentsError("");
     setDetailRemains([]);
@@ -1061,6 +1134,9 @@ function CryptsPage() {
 
   const handleCloseSaleModal = () => {
     if (savingSale) return;
+    setPendingSale(null);
+    setSaleFormDirty(false);
+    setDiscardTarget(null);
     setSelectedCryptForSale(null);
   };
 
@@ -1068,7 +1144,104 @@ function CryptsPage() {
     if (savingPayment) return;
 
     setPaymentModalError("");
+    setPendingPaymentCreation(null);
+    setPaymentCreationDirty(false);
+    setDiscardTarget(null);
     setSelectedCryptForPayment(null);
+  };
+
+  const handleClosePaymentEditModal = () => {
+    if (savingPayment) return;
+
+    setPaymentModalError("");
+    setPendingPaymentUpdate(null);
+    setPaymentEditDirty(false);
+    setDiscardTarget(null);
+    setSelectedPaymentForEdit(null);
+  };
+
+  const handleRequestCreateSale = (
+    mode: "existing" | "new",
+    clientData: number | ClientPayload,
+    initialPayment?: Omit<PaymentPayload, "paidByClientId">,
+    saleDetails?: SaleDetails
+  ) => {
+    setPendingSale({ mode, clientData, initialPayment, saleDetails });
+  };
+
+  const handleRequestCreatePayment = async (payment: PaymentPayload) => {
+    setPendingPaymentCreation(payment);
+  };
+
+  const handleRequestUpdateDetailPayment = async (
+    payment: PaymentPayload
+  ) => {
+    setPendingPaymentUpdate(payment);
+  };
+
+  const handleRequestCloseDetailModal = () => {
+    if (savingCrypt) return;
+
+    if (editingDetailCrypt && cryptDetailDirty) {
+      setDiscardTarget("detail");
+      return;
+    }
+
+    handleCloseDetailModal();
+  };
+
+  const handleRequestCancelCryptEdit = () => {
+    if (savingCrypt) return;
+
+    if (cryptDetailDirty) {
+      setDiscardTarget("crypt-edit");
+      return;
+    }
+
+    setEditingDetailCrypt(false);
+    setPendingCryptUpdate(null);
+  };
+
+  const handleRequestCloseSaleModal = () => {
+    if (savingSale) return;
+    if (saleFormDirty) {
+      setDiscardTarget("sale");
+      return;
+    }
+    handleCloseSaleModal();
+  };
+
+  const handleRequestClosePaymentModal = () => {
+    if (savingPayment) return;
+    if (paymentCreationDirty) {
+      setDiscardTarget("payment-create");
+      return;
+    }
+    handleClosePaymentModal();
+  };
+
+  const handleRequestClosePaymentEditModal = () => {
+    if (savingPayment) return;
+    if (paymentEditDirty) {
+      setDiscardTarget("payment-edit");
+      return;
+    }
+    handleClosePaymentEditModal();
+  };
+
+  const handleConfirmDiscard = () => {
+    if (discardTarget === "crypt-edit") {
+      setEditingDetailCrypt(false);
+      setPendingCryptUpdate(null);
+      setCryptDetailDirty(false);
+      setDiscardTarget(null);
+      return;
+    }
+
+    if (discardTarget === "detail") handleCloseDetailModal();
+    if (discardTarget === "sale") handleCloseSaleModal();
+    if (discardTarget === "payment-create") handleClosePaymentModal();
+    if (discardTarget === "payment-edit") handleClosePaymentEditModal();
   };
 
   const handleCloseRemainModal = () => {
@@ -1358,13 +1531,49 @@ function CryptsPage() {
 
       <Modal
         isOpen={selectedCryptForDetail !== null}
-        title="Detalles de cripta"
-        onClose={handleCloseDetailModal}
+        title={
+          selectedCryptForDetail
+            ? `Cripta ${getCryptCode(selectedCryptForDetail)}`
+            : "Detalles de cripta"
+        }
+        onClose={handleRequestCloseDetailModal}
         closeDisabled={savingCrypt}
+        headerActions={
+          selectedCryptForDetail &&
+          (!editingDetailCrypt ? (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setEditingDetailCrypt(true)}
+            >
+              Editar
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleRequestCancelCryptEdit}
+                disabled={savingCrypt}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => cryptDetailRef.current?.save()}
+                disabled={savingCrypt}
+              >
+                {savingCrypt ? "Guardando..." : "Guardar"}
+              </button>
+            </>
+          ))
+        }
         size="wide"
       >
         {selectedCryptForDetail && (
           <CryptDetail
+            ref={cryptDetailRef}
             crypt={selectedCryptForDetail}
             clients={clients.filter((client) => client.isActive)}
             payments={detailPayments}
@@ -1376,21 +1585,34 @@ function CryptsPage() {
             loadingRemains={detailRemainsLoading}
             remainsError={detailRemainsError}
             purchaseDate={selectedCryptForDetail.purchasedAt ?? undefined}
-            onEdit={() => setEditingDetailCrypt(true)}
-            onCancelEdit={() => {
-              setEditingDetailCrypt(false);
-              setPendingCryptUpdate(null);
-            }}
             onSaveEdit={handleRequestUpdateCryptDetails}
+            onEditPayment={handleEditDetailPayment}
             onDeleteRemain={handleRequestDeleteRemain}
+            onDirtyChange={setCryptDetailDirty}
           />
         )}
       </Modal>
 
       <Modal
+        isOpen={selectedPaymentForEdit !== null}
+        title="Editar pago"
+        onClose={handleRequestClosePaymentEditModal}
+        closeDisabled={savingPayment}
+      >
+        <PaymentForm
+          payment={selectedPaymentForEdit}
+          saving={savingPayment}
+          serverError={paymentModalError}
+          onSubmit={handleRequestUpdateDetailPayment}
+          onCancel={handleRequestClosePaymentEditModal}
+          onDirtyChange={setPaymentEditDirty}
+        />
+      </Modal>
+
+      <Modal
         isOpen={selectedCryptForSale !== null}
         title="Registrar venta"
-        onClose={handleCloseSaleModal}
+        onClose={handleRequestCloseSaleModal}
         closeDisabled={savingSale}
       >
         {selectedCryptForSale && (
@@ -1402,8 +1624,9 @@ function CryptsPage() {
                 ? getEffectiveCryptBalanceDue(selectedCryptForSale)
                 : selectedCryptForSale.cost
             }
-            onSubmit={handleCreateSale}
-            onCancel={handleCloseSaleModal}
+            onSubmit={handleRequestCreateSale}
+            onCancel={handleRequestCloseSaleModal}
+            onDirtyChange={setSaleFormDirty}
           />
         )}
       </Modal>
@@ -1411,7 +1634,7 @@ function CryptsPage() {
       <Modal
         isOpen={selectedCryptForPayment !== null}
         title="Registrar pago"
-        onClose={handleClosePaymentModal}
+        onClose={handleRequestClosePaymentModal}
         closeDisabled={savingPayment}
       >
         {selectedCryptForPayment?.id && (
@@ -1421,8 +1644,9 @@ function CryptsPage() {
             saving={savingPayment}
             maxAmount={getEffectiveCryptBalanceDue(selectedCryptForPayment)}
             serverError={paymentModalError}
-            onSubmit={handleCreatePayment}
-            onCancel={handleClosePaymentModal}
+            onSubmit={handleRequestCreatePayment}
+            onCancel={handleRequestClosePaymentModal}
+            onDirtyChange={setPaymentCreationDirty}
           />
         )}
       </Modal>
@@ -1485,6 +1709,69 @@ function CryptsPage() {
           </form>
         )}
       </Modal>
+
+      <ConfirmModal
+        isOpen={discardTarget !== null}
+        title="Descartar cambios"
+        message="Hay cambios sin guardar. ¿Seguro que quieres descartarlos?"
+        confirmLabel="Descartar cambios"
+        confirmClassName="btn-danger"
+        onConfirm={handleConfirmDiscard}
+        onCancel={() => setDiscardTarget(null)}
+      />
+
+      <ConfirmModal
+        isOpen={pendingSale !== null}
+        title="Confirmar registro de venta"
+        message="¿Seguro que quieres registrar esta venta con los datos capturados?"
+        confirmLabel="Registrar venta"
+        confirming={savingSale}
+        onConfirm={() => {
+          if (pendingSale) {
+            void handleCreateSale(
+              pendingSale.mode,
+              pendingSale.clientData,
+              pendingSale.initialPayment,
+              pendingSale.saleDetails
+            );
+          }
+        }}
+        onCancel={() => {
+          if (!savingSale) setPendingSale(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={pendingPaymentCreation !== null}
+        title="Confirmar registro de pago"
+        message="¿Seguro que quieres registrar este pago?"
+        confirmLabel="Registrar pago"
+        confirming={savingPayment}
+        onConfirm={() => {
+          if (pendingPaymentCreation) {
+            void handleCreatePayment(pendingPaymentCreation);
+          }
+        }}
+        onCancel={() => {
+          if (!savingPayment) setPendingPaymentCreation(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={pendingPaymentUpdate !== null}
+        title="Confirmar actualización del pago"
+        message="¿Seguro que quieres guardar los cambios de este pago?"
+        confirmLabel="Guardar cambios"
+        confirming={savingPayment}
+        onConfirm={() => {
+          if (pendingPaymentUpdate) {
+            void handleUpdateDetailPayment(pendingPaymentUpdate);
+          }
+        }}
+        onCancel={() => {
+          if (!savingPayment) setPendingPaymentUpdate(null);
+        }}
+      />
 
       <ConfirmModal
         isOpen={cryptToCancelPurchase !== null}

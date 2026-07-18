@@ -15,9 +15,10 @@ import {
 type ClientFormProps = {
   selectedClient: Client | null;
   saving?: boolean;
-  onCreateClient: (client: ClientPayload) => Promise<boolean>;
-  onUpdateClient: (id: number, client: UpdateClientPayload) => Promise<boolean>;
+  onCreateClient: (client: ClientPayload) => void;
+  onUpdateClient: (id: number, client: UpdateClientPayload) => void;
   onCancel: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type ClientFormData = {
@@ -70,6 +71,7 @@ function ClientForm({
   onCreateClient,
   onUpdateClient,
   onCancel,
+  onDirtyChange,
 }: ClientFormProps) {
   const [formData, setFormData] = useState<ClientFormData>(() =>
     getClientFormData(selectedClient)
@@ -80,6 +82,12 @@ function ClientForm({
     setFormData(getClientFormData(selectedClient));
     setFormError("");
   }, [selectedClient]);
+
+  useEffect(() => {
+    onDirtyChange?.(
+      JSON.stringify(formData) !== JSON.stringify(getClientFormData(selectedClient))
+    );
+  }, [formData, onDirtyChange, selectedClient]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -125,7 +133,7 @@ function ClientForm({
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const validationMessage = validateForm();
@@ -148,13 +156,12 @@ function ClientForm({
       createdAt: selectedClient?.createdAt,
     };
 
-    const success = selectedClient?.id
-      ? await onUpdateClient(selectedClient.id, clientToSave)
-      : await onCreateClient(clientToSave);
-
-    if (success) {
-      onCancel();
+    if (selectedClient?.id) {
+      onUpdateClient(selectedClient.id, clientToSave);
+      return;
     }
+
+    onCreateClient(clientToSave);
   };
 
   return (

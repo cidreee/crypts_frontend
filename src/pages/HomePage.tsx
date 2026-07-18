@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import ToastMessage from "../components/common/ToastMessage";
 import PageLoader from "../components/common/PageLoader";
 import { useCrypts } from "../hooks/useCrypts";
 import { formatCurrency } from "../utils/format";
 import { getEffectiveCryptBalanceDue } from "../utils/cryptOwnership";
+import CryptExportModal from "../components/home/CryptExportModal";
 
 function getPercent(value: number, total: number) {
   if (total <= 0) return 0;
@@ -19,6 +21,7 @@ function getBarWidth(value: number, max: number) {
 
 function HomePage() {
   const { crypts, loading, error } = useCrypts();
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const validCrypts = crypts.filter(
     (crypt) => crypt !== null && crypt !== undefined
   );
@@ -72,6 +75,15 @@ function HomePage() {
           <h1>Inicio</h1>
           <p>Tablero de trabajo para ventas, pagos y pendientes.</p>
         </div>
+
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => setExportModalOpen(true)}
+          disabled={loading || validCrypts.length === 0}
+        >
+          Exportar a Excel
+        </button>
       </div>
 
       <div className="toast-stack">
@@ -272,6 +284,12 @@ function HomePage() {
         </div>
       </section>
       </section>
+      {exportModalOpen && (
+        <CryptExportModal
+          crypts={validCrypts}
+          onClose={() => setExportModalOpen(false)}
+        />
+      )}
     </>
   );
 }

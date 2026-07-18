@@ -108,6 +108,15 @@
   box-shadow: -8px 0 14px -14px rgba(66, 52, 36, 0.42);
 }
 
+.clients-table .table-sticky-action-compact,
+.data-table .table-sticky-action-compact {
+  width: 68px;
+  min-width: 68px;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+  text-align: center;
+}
+
 .clients-table th.table-sticky-left,
 .clients-table th.table-sticky-right,
 .data-table th.table-sticky-left,
@@ -234,6 +243,24 @@
   background-color: var(--surface-hover);
 }
 
+.table-icon-action {
+  display: inline-flex;
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
+  color: var(--primary-dark);
+}
+
+.table-icon-action:hover:not(:disabled) {
+  border-color: var(--primary);
+  background-color: var(--surface-hover);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -270,8 +297,8 @@
 }
 
 .badge-role-beneficiary {
-  background-color: var(--primary-soft);
-  color: var(--primary-dark);
+  background-color: #fff1b8;
+  color: #7a5700;
 }
 
 .badge-role-mixed {

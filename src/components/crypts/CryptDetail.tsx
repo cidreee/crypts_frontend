@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Client, ClientPayload } from "../../types/client";
 import type { Crypt, CryptPayload } from "../../types/crypt";
@@ -24,6 +24,10 @@ export type EditableCryptDetails = Pick<
   beneficiary?: ClientPayload;
 };
 
+export type CryptDetailHandle = {
+  save: () => void;
+};
+
 type CryptDetailProps = {
   crypt: Crypt;
   clients: Client[];
@@ -36,10 +40,10 @@ type CryptDetailProps = {
   loadingRemains?: boolean;
   remainsError?: string;
   purchaseDate?: string;
-  onEdit: () => void;
-  onCancelEdit: () => void;
   onSaveEdit: (details: EditableCryptDetails) => void;
+  onEditPayment: (payment: Payment) => void;
   onDeleteRemain: (remain: CryptRemain) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type DetailEditForm = {
@@ -109,8 +113,28 @@ function formatPaymentClientName(payment: Payment) {
   );
 }
 
-function getCryptCode(crypt: Crypt) {
-  return `${crypt.section}-${crypt.letter}-${crypt.number}`;
+function getPaymentClientHistoryUrl(payment: Payment) {
+  const searchParams = new URLSearchParams({ from: "crypts" });
+
+  if (payment.cryptId) {
+    searchParams.set("cryptId", payment.cryptId.toString());
+  }
+
+  return `/clients/${payment.paidByClientId}/payments?${searchParams.toString()}`;
+}
+
+function PaymentClientLink({ payment }: { payment: Payment }) {
+  const clientName = formatPaymentClientName(payment);
+
+  if (!payment.paidByClientId) {
+    return <span>{clientName}</span>;
+  }
+
+  return (
+    <Link className="table-inline-link" to={getPaymentClientHistoryUrl(payment)}>
+      {clientName}
+    </Link>
+  );
 }
 
 function getStatusLabel(crypt: Crypt) {
@@ -173,7 +197,7 @@ function DetailItem({
   );
 }
 
-function CryptDetail({
+const CryptDetail = forwardRef<CryptDetailHandle, CryptDetailProps>(function CryptDetail({
   crypt,
   clients,
   payments,
@@ -185,11 +209,11 @@ function CryptDetail({
   loadingRemains = false,
   remainsError = "",
   purchaseDate,
-  onEdit,
-  onCancelEdit,
   onSaveEdit,
+  onEditPayment,
   onDeleteRemain,
-}: CryptDetailProps) {
+  onDirtyChange,
+}: CryptDetailProps, ref) {
   const [editForm, setEditForm] = useState<DetailEditForm>(() =>
     getInitialEditForm(crypt)
   );
@@ -221,6 +245,12 @@ function CryptDetail({
     setEditForm(getInitialEditForm(crypt));
     setEditFormError("");
   }, [crypt]);
+
+  useEffect(() => {
+    onDirtyChange?.(
+      JSON.stringify(editForm) !== JSON.stringify(getInitialEditForm(crypt))
+    );
+  }, [crypt, editForm, onDirtyChange]);
 
   useEffect(() => {
     if (!editing) return;
@@ -382,40 +412,12 @@ function CryptDetail({
     });
   };
 
+  useImperativeHandle(ref, () => ({
+    save: handleSaveEdit,
+  }));
+
   return (
     <div className="crypt-detail">
-      <div className="detail-toolbar">
-        <div>
-          <span>Cripta</span>
-          <strong>{getCryptCode(crypt)}</strong>
-        </div>
-
-        {!editing ? (
-          <button type="button" className="btn-secondary" onClick={onEdit}>
-            Editar
-          </button>
-        ) : (
-          <div className="detail-toolbar-actions">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={onCancelEdit}
-              disabled={saving}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={handleSaveEdit}
-              disabled={saving}
-            >
-              {saving ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        )}
-      </div>
-
       <section className="detail-section">
         <div className="detail-section-title">
           <h3>Ubicación</h3>
@@ -772,6 +774,9 @@ function CryptDetail({
                   <th>Método</th>
                   <th>Fecha</th>
                   <th>Estado</th>
+                  <th className="table-sticky-right table-sticky-action-compact">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
 
@@ -779,7 +784,9 @@ function CryptDetail({
                 {payments.map((payment) => (
                   <tr key={payment.id}>
                     <td>{payment.id}</td>
-                    <td>{formatPaymentClientName(payment)}</td>
+                    <td>
+                      <PaymentClientLink payment={payment} />
+                    </td>
                     <td>{formatCurrency(payment.amount)}</td>
                     <td>
                       {getPaymentMethodLabel(
@@ -799,6 +806,30 @@ function CryptDetail({
                         {payment.isActive ? "Activo" : "Inactivo"}
                       </span>
                     </td>
+                    <td className="table-sticky-right table-sticky-action-compact">
+                      <button
+                        type="button"
+                        className="table-icon-action"
+                        title="Editar pago"
+                        aria-label="Editar pago"
+                        onClick={() => onEditPayment(payment)}
+                      >
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -808,6 +839,6 @@ function CryptDetail({
       </section>
     </div>
   );
-}
+});
 
 export default CryptDetail;

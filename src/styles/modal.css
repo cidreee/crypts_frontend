@@ -47,6 +47,23 @@
   border-bottom: 1px solid var(--border);
 }
 
+.modal-header-main,
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.modal-header-main {
+  min-width: 0;
+  flex: 1;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.modal-header-actions {
+  gap: 0.65rem;
+}
+
 .modal-header h2 {
   margin: 0;
   font-size: 1.15rem;
@@ -61,6 +78,22 @@
 .modal-body .form-container,
 .modal-body .table-container {
   animation: none;
+}
+
+@media (max-width: 640px) {
+  .modal-header {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .modal-header-main {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modal-header-actions button {
+    flex: 1;
+  }
 }
 
 .confirm-message {

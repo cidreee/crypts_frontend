@@ -6,6 +6,7 @@ type ModalProps = {
   children: ReactNode;
   onClose: () => void;
   closeDisabled?: boolean;
+  headerActions?: ReactNode;
   size?: "default" | "wide";
   motion?: "default" | "none";
 };
@@ -16,6 +17,7 @@ function Modal({
   children,
   onClose,
   closeDisabled = false,
+  headerActions,
   size = "default",
   motion = "none",
 }: ModalProps) {
@@ -35,7 +37,13 @@ function Modal({
         }`}
       >
         <div className="modal-header">
-          <h2>{title}</h2>
+          <div className="modal-header-main">
+            <h2>{title}</h2>
+
+            {headerActions && (
+              <div className="modal-header-actions">{headerActions}</div>
+            )}
+          </div>
 
           <button
             type="button"

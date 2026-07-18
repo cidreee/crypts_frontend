@@ -122,7 +122,13 @@ function ClientTable({
                   {client.firstName} {client.lastName}
                 </td>
 
-                <td>{client.phoneNumber ?? "Sin teléfono"}</td>
+                <td>
+                  {client.phoneNumber ? (
+                    client.phoneNumber
+                  ) : (
+                    <span className="table-muted-italic">Sin teléfono</span>
+                  )}
+                </td>
 
                 <td>{currentCryptsCount}</td>
 
@@ -225,11 +231,9 @@ function ClientTable({
                     </option>
                     <option value="edit">Editar cliente</option>
                     <option value="payments">Ver detalles</option>
-                    {client.isActive && (
-                      <option value="deactivate" disabled={isBeneficiary}>
-                        {isBeneficiary
-                          ? "No se puede desactivar: es beneficiario"
-                          : "Desactivar cliente"}
+                    {client.isActive && !isBeneficiary && (
+                      <option value="deactivate">
+                        Desactivar cliente
                       </option>
                     )}
                   </select>

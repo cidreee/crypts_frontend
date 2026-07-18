@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useClients } from "../hooks/useClients";
 import { apiService } from "../services/apiService";
-import type { Client } from "../types/client";
+import type {
+  Client,
+  ClientPayload,
+  UpdateClientPayload,
+} from "../types/client";
 import type { Crypt } from "../types/crypt";
 import type { Payment } from "../types/payment";
 import { formatCurrency } from "../utils/currency";
@@ -22,9 +26,14 @@ import ClientForm from "../components/clients/ClientForm";
 import Modal from "../components/common/Modal";
 import ToastMessage from "../components/common/ToastMessage";
 import PageLoader from "../components/common/PageLoader";
+import ConfirmModal from "../components/common/ConfirmModal";
 
 type StatusFilter = "all" | "active" | "inactive";
 type BalanceFilter = "all" | "withDebt" | "withoutDebt";
+type RoleFilter = "all" | "current" | "beneficiary";
+type PendingClientSave =
+  | { mode: "create"; payload: ClientPayload }
+  | { mode: "update"; id: number; payload: UpdateClientPayload };
 
 function ClientsPage() {
   const navigate = useNavigate();
@@ -48,10 +57,16 @@ function ClientsPage() {
     null
   );
   const [deactivationReason, setDeactivationReason] = useState("");
+  const [pendingClientSave, setPendingClientSave] =
+    useState<PendingClientSave | null>(null);
+  const [clientFormDirty, setClientFormDirty] = useState(false);
+  const [confirmingClientDiscard, setConfirmingClientDiscard] =
+    useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [crypts, setCrypts] = useState<Crypt[]>([]);
   const [cryptsLoading, setCryptsLoading] = useState(false);
   const [cryptsError, setCryptsError] = useState("");
@@ -65,6 +80,7 @@ function ClientsPage() {
     const currentSearchParams = new URLSearchParams(searchParamsKey);
     const balanceParam = currentSearchParams.get("balance");
     const statusParam = currentSearchParams.get("status");
+    const roleParam = currentSearchParams.get("role");
     const searchParam = currentSearchParams.get("search");
 
     setBalanceFilter(
@@ -75,6 +91,11 @@ function ClientsPage() {
     setStatusFilter(
       statusParam === "active" || statusParam === "inactive"
         ? statusParam
+        : "all"
+    );
+    setRoleFilter(
+      roleParam === "current" || roleParam === "beneficiary"
+        ? roleParam
         : "all"
     );
     setSearchTerm(searchParam ?? "");
@@ -124,6 +145,7 @@ function ClientsPage() {
     setSearchTerm("");
     setStatusFilter("all");
     setBalanceFilter("all");
+    setRoleFilter("all");
     setSearchParams({});
   };
 
@@ -276,14 +298,24 @@ function ClientsPage() {
         (balanceFilter === "withDebt" && balanceDue > 0) ||
         (balanceFilter === "withoutDebt" && balanceDue <= 0);
 
-      return matchesSearch && matchesStatus && matchesBalance;
+      const roleStats = client.id ? roleStatsByClientId[client.id] : undefined;
+      const matchesRole =
+        roleFilter === "all" ||
+        (roleFilter === "current" &&
+          (roleStats?.currentCryptsCount ?? 0) > 0) ||
+        (roleFilter === "beneficiary" &&
+          (roleStats?.beneficiaryCryptsCount ?? 0) > 0);
+
+      return matchesSearch && matchesStatus && matchesBalance && matchesRole;
     });
   }, [
     clients,
     financialStatsByClientId,
+    roleStatsByClientId,
     searchTerm,
     statusFilter,
     balanceFilter,
+    roleFilter,
   ]);
 
 
@@ -420,8 +452,49 @@ function ClientsPage() {
   };
 
   const handleCloseModal = () => {
+    setPendingClientSave(null);
+    setClientFormDirty(false);
+    setConfirmingClientDiscard(false);
     setIsModalOpen(false);
     setSelectedClient(null);
+  };
+
+  const handleRequestCloseModal = () => {
+    if (saving) return;
+
+    if (clientFormDirty) {
+      setConfirmingClientDiscard(true);
+      return;
+    }
+
+    handleCloseModal();
+  };
+
+  const handleRequestCreateClient = (payload: ClientPayload) => {
+    setPendingClientSave({ mode: "create", payload });
+  };
+
+  const handleRequestUpdateClient = (
+    id: number,
+    payload: UpdateClientPayload
+  ) => {
+    setPendingClientSave({ mode: "update", id, payload });
+  };
+
+  const handleConfirmClientSave = async () => {
+    if (!pendingClientSave || saving) return;
+
+    const success =
+      pendingClientSave.mode === "create"
+        ? await createClient(pendingClientSave.payload)
+        : await updateClient(pendingClientSave.id, pendingClientSave.payload);
+
+    if (success) {
+      handleCloseModal();
+      return;
+    }
+
+    setPendingClientSave(null);
   };
 
   const isPageLoading = loading || cryptsLoading || paymentsLoading;
@@ -515,8 +588,8 @@ function ClientsPage() {
         </div>
       </div>
 
-      <div className="filters-container">
-        <div className="form-group">
+      <div className="filters-container clients-filters">
+        <div className="form-group clients-filter-search">
           <label>Buscar</label>
           <input
             type="text"
@@ -552,6 +625,18 @@ function ClientsPage() {
           </select>
         </div>
 
+        <div className="form-group">
+          <label>Rol</label>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+          >
+            <option value="all">Todos</option>
+            <option value="current">Cliente actual</option>
+            <option value="beneficiary">Beneficiario</option>
+          </select>
+        </div>
+
         <div className="filters-inline-action">
           <button
             type="button"
@@ -584,16 +669,51 @@ function ClientsPage() {
       <Modal
         isOpen={isModalOpen}
         title={selectedClient ? "Editar cliente" : "Registrar cliente"}
-        onClose={handleCloseModal}
+        onClose={handleRequestCloseModal}
       >
         <ClientForm
           selectedClient={selectedClient}
           saving={saving}
-          onCreateClient={createClient}
-          onUpdateClient={updateClient}
-          onCancel={handleCloseModal}
+          onCreateClient={handleRequestCreateClient}
+          onUpdateClient={handleRequestUpdateClient}
+          onCancel={handleRequestCloseModal}
+          onDirtyChange={setClientFormDirty}
         />
       </Modal>
+
+      <ConfirmModal
+        isOpen={pendingClientSave !== null}
+        title={
+          pendingClientSave?.mode === "update"
+            ? "Confirmar cambios del cliente"
+            : "Confirmar nuevo cliente"
+        }
+        message={
+          pendingClientSave?.mode === "update"
+            ? "¿Seguro que quieres guardar los cambios de este cliente?"
+            : "¿Seguro que quieres registrar este nuevo cliente?"
+        }
+        confirmLabel={
+          pendingClientSave?.mode === "update"
+            ? "Guardar cambios"
+            : "Registrar cliente"
+        }
+        confirming={saving}
+        onConfirm={handleConfirmClientSave}
+        onCancel={() => {
+          if (!saving) setPendingClientSave(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={confirmingClientDiscard}
+        title="Descartar cambios"
+        message="Hay cambios sin guardar. ¿Seguro que quieres descartarlos?"
+        confirmLabel="Descartar cambios"
+        confirmClassName="btn-danger"
+        onConfirm={handleCloseModal}
+        onCancel={() => setConfirmingClientDiscard(false)}
+      />
 
       <Modal
         isOpen={clientToDeactivate !== null}

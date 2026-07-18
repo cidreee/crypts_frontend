@@ -2,9 +2,11 @@
 import { formatCurrency } from "../../utils/currency";
 import { getPaymentMethodLabel } from "../../constants/paymentMethods";
 import { formatBackendDate } from "../../utils/date";
+import { Link } from "react-router-dom";
 
 type PaymentHistoryTableProps = {
   payments: Payment[];
+  cryptCodeById: Record<number, string>;
   onEditPayment: (payment: Payment) => void;
 };
 
@@ -16,7 +18,14 @@ function formatClientName(payment: Payment) {
   return `${client.firstName} ${client.lastName}`.trim() || `Cliente ${payment.paidByClientId}`;
 }
 
-function formatCryptCode(payment: Payment) {
+function formatCryptCode(
+  payment: Payment,
+  cryptCodeById: Record<number, string>
+) {
+  const resolvedCode = cryptCodeById[payment.cryptId];
+
+  if (resolvedCode) return resolvedCode;
+
   const crypt = payment.crypt;
 
   if (!crypt) return `Cripta ${payment.cryptId}`;
@@ -24,8 +33,28 @@ function formatCryptCode(payment: Payment) {
   return `${crypt.section}-${crypt.letter}-${crypt.number}`;
 }
 
+function CryptTableLink({
+  payment,
+  cryptCodeById,
+}: {
+  payment: Payment;
+  cryptCodeById: Record<number, string>;
+}) {
+  const cryptCode = formatCryptCode(payment, cryptCodeById);
+
+  return (
+    <Link
+      className="table-inline-link"
+      to={`/crypts?search=${encodeURIComponent(cryptCode)}`}
+    >
+      {cryptCode}
+    </Link>
+  );
+}
+
 function PaymentHistoryTable({
   payments,
+  cryptCodeById,
   onEditPayment,
 }: PaymentHistoryTableProps) {
   if (payments.length === 0) {
@@ -44,7 +73,7 @@ function PaymentHistoryTable({
             <th>Método de pago</th>
             <th>Fecha de pago</th>
             <th>Estado</th>
-            <th>Acciones</th>
+            <th className="table-sticky-right">Acciones</th>
           </tr>
         </thead>
 
@@ -53,7 +82,12 @@ function PaymentHistoryTable({
             <tr key={payment.id}>
               <td>{payment.id}</td>
 
-              <td>{formatCryptCode(payment)}</td>
+              <td>
+                <CryptTableLink
+                  payment={payment}
+                  cryptCodeById={cryptCodeById}
+                />
+              </td>
 
               <td>{formatClientName(payment)}</td>
 
@@ -82,7 +116,7 @@ function PaymentHistoryTable({
                 </span>
               </td>
 
-              <td>
+              <td className="table-sticky-right">
                 <select
                   className="actions-select"
                   defaultValue=""

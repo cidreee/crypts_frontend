@@ -24,7 +24,12 @@ function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   return (
-    <Modal isOpen={isOpen} title={title} onClose={onCancel}>
+    <Modal
+      isOpen={isOpen}
+      title={title}
+      onClose={onCancel}
+      closeDisabled={confirming}
+    >
       <p className="confirm-message">{message}</p>
 
       <div className="form-actions">

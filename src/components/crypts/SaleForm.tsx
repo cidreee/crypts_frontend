@@ -33,6 +33,7 @@ type SaleFormProps = {
     saleDetails: SaleDetails
   ) => void;
   onCancel: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type SaleFormData = {
@@ -101,6 +102,7 @@ function SaleForm({
   maxInitialPayment,
   onSubmit,
   onCancel,
+  onDirtyChange,
 }: SaleFormProps) {
   const [formData, setFormData] = useState<SaleFormData>(() =>
     getInitialFormData(clients)
@@ -128,6 +130,12 @@ function SaleForm({
       };
     });
   }, [clients]);
+
+  useEffect(() => {
+    onDirtyChange?.(
+      JSON.stringify(formData) !== JSON.stringify(getInitialFormData(clients))
+    );
+  }, [clients, formData, onDirtyChange]);
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement>

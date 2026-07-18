@@ -30,6 +30,7 @@ import PaymentForm from "../components/payment/PaymentForm";
 import Modal from "../components/common/Modal";
 import ToastMessage from "../components/common/ToastMessage";
 import PageLoader from "../components/common/PageLoader";
+import ConfirmModal from "../components/common/ConfirmModal";
 
 type ClientCryptBalanceRow = {
   crypt: Crypt;
@@ -81,6 +82,11 @@ function ClientPaymentHistoryPage() {
   const [clientsError, setClientsError] = useState("");
 
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [pendingPaymentUpdate, setPendingPaymentUpdate] =
+    useState<PaymentPayload | null>(null);
+  const [paymentFormDirty, setPaymentFormDirty] = useState(false);
+  const [confirmingPaymentDiscard, setConfirmingPaymentDiscard] =
+    useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
   const [pageMessage, setPageMessage] = useState("");
   const [pageError, setPageError] = useState("");
@@ -159,14 +165,24 @@ function ClientPaymentHistoryPage() {
     loadClients();
   }, [loadClients]);
 
+  const cryptCodeById = useMemo(() => {
+    return crypts.reduce<Record<number, string>>((codes, crypt) => {
+      if (crypt.id) {
+        codes[crypt.id] = getCryptCode(crypt);
+      }
+
+      return codes;
+    }, {});
+  }, [crypts]);
+
   const cryptOptions = useMemo(() => {
     const map = new Map<number, string>();
 
     payments.forEach((payment) => {
       if (!map.has(payment.cryptId)) {
-        const label = payment.crypt
+        const label = cryptCodeById[payment.cryptId] ?? (payment.crypt
           ? `${payment.crypt.section}-${payment.crypt.letter}-${payment.crypt.number}`
-          : `Cripta ${payment.cryptId}`;
+          : `Cripta ${payment.cryptId}`);
 
         map.set(payment.cryptId, label);
       }
@@ -176,7 +192,7 @@ function ClientPaymentHistoryPage() {
       id,
       label,
     }));
-  }, [payments]);
+  }, [cryptCodeById, payments]);
 
   const totalFilteredPaid = useMemo(() => {
     return payments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -354,12 +370,14 @@ function ClientPaymentHistoryPage() {
       await apiService.payments.update(payment.id, payment);
 
       setSelectedPayment(null);
+      setPendingPaymentUpdate(null);
       setPageMessage("Pago actualizado correctamente.");
 
       await handleCryptFilterChange(selectedCryptId);
       await loadClient();
     } catch (error) {
       console.error("Error updating payment:", error);
+      setPendingPaymentUpdate(null);
       setPageError(getApiErrorMessage(error, "No se pudo actualizar el pago."));
     } finally {
       setSavingPayment(false);
@@ -368,7 +386,25 @@ function ClientPaymentHistoryPage() {
 
   const handleClosePaymentModal = () => {
     if (savingPayment) return;
+    setPendingPaymentUpdate(null);
+    setPaymentFormDirty(false);
+    setConfirmingPaymentDiscard(false);
     setSelectedPayment(null);
+  };
+
+  const handleRequestClosePaymentModal = () => {
+    if (savingPayment) return;
+
+    if (paymentFormDirty) {
+      setConfirmingPaymentDiscard(true);
+      return;
+    }
+
+    handleClosePaymentModal();
+  };
+
+  const handleRequestUpdatePayment = async (payment: PaymentPayload) => {
+    setPendingPaymentUpdate(payment);
   };
 
   if (!numericClientId || Number.isNaN(numericClientId)) {
@@ -604,6 +640,7 @@ function ClientPaymentHistoryPage() {
         {!loading && payments.length > 0 && (
           <PaymentHistoryTable
             payments={payments}
+            cryptCodeById={cryptCodeById}
             onEditPayment={handleEditPayment}
           />
         )}
@@ -612,15 +649,40 @@ function ClientPaymentHistoryPage() {
       <Modal
         isOpen={selectedPayment !== null}
         title="Editar pago"
-        onClose={handleClosePaymentModal}
+        onClose={handleRequestClosePaymentModal}
       >
         <PaymentForm
           payment={selectedPayment}
           saving={savingPayment}
-          onSubmit={handleUpdatePayment}
-          onCancel={handleClosePaymentModal}
+          onSubmit={handleRequestUpdatePayment}
+          onCancel={handleRequestClosePaymentModal}
+          onDirtyChange={setPaymentFormDirty}
         />
       </Modal>
+      <ConfirmModal
+        isOpen={pendingPaymentUpdate !== null}
+        title="Confirmar actualización del pago"
+        message="¿Seguro que quieres guardar los cambios de este pago?"
+        confirmLabel="Guardar cambios"
+        confirming={savingPayment}
+        onConfirm={() => {
+          if (pendingPaymentUpdate) {
+            void handleUpdatePayment(pendingPaymentUpdate);
+          }
+        }}
+        onCancel={() => {
+          if (!savingPayment) setPendingPaymentUpdate(null);
+        }}
+      />
+      <ConfirmModal
+        isOpen={confirmingPaymentDiscard}
+        title="Descartar cambios"
+        message="Hay cambios sin guardar. ¿Seguro que quieres descartarlos?"
+        confirmLabel="Descartar cambios"
+        confirmClassName="btn-danger"
+        onConfirm={handleClosePaymentModal}
+        onCancel={() => setConfirmingPaymentDiscard(false)}
+      />
       </section>
     </>
   );

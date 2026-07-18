@@ -16,6 +16,7 @@ type PaymentFormProps = {
   serverError?: string;
   onSubmit: (payment: PaymentPayload) => Promise<void>;
   onCancel: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type PaymentFormData = {
@@ -49,6 +50,7 @@ function PaymentForm({
   serverError = "",
   onSubmit,
   onCancel,
+  onDirtyChange,
 }: PaymentFormProps) {
   const [formData, setFormData] = useState<PaymentFormData>(() =>
     getPaymentFormData(payment)
@@ -59,6 +61,12 @@ function PaymentForm({
     setFormData(getPaymentFormData(payment));
     setFormError("");
   }, [payment]);
+
+  useEffect(() => {
+    onDirtyChange?.(
+      JSON.stringify(formData) !== JSON.stringify(getPaymentFormData(payment))
+    );
+  }, [formData, onDirtyChange, payment]);
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
